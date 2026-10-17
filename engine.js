@@ -2,7 +2,9 @@
   'use strict';
 
   const DEFAULTS = {
-    capital: 10000, leverage: 5, mmrPct: 0.5, feePct: 0.04,
+    capital: 10000, leverage: 5, mmrPct: 0.5, feePct: 0.04, slippagePct: 0.02,
+    fundingPctPer8h: 0.01, hoursPerStep: 24,
+    shockProbabilityPctPerDay: 0, shockMeanPct: -8, shockVolPct: 3,
     initialMarginPct: 30, addMarginPct: 1.5, maxMarginUsePct: 40,
     safetyBufferPct: 20, ladderStepPct: 3, maxAdds: 4,
     hardStopPct: 15, trailingStopPct: 8, trailActivationPct: 5,
@@ -15,6 +17,7 @@
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   const num = (v, fallback) => Number.isFinite(Number(v)) ? Number(v) : fallback;
   const rate = (pct) => Math.max(0, num(pct, 0)) / 100;
+  const executionCostRate = (c) => rate(c.feePct) + rate(c.slippagePct);
 
   function normalizeConfig(input = {}) {
     const c = { ...DEFAULTS, ...input };
@@ -22,6 +25,12 @@
     c.leverage = clamp(num(c.leverage, DEFAULTS.leverage), 1, 100);
     c.mmrPct = clamp(num(c.mmrPct, DEFAULTS.mmrPct), 0.01, 20);
     c.feePct = clamp(num(c.feePct, DEFAULTS.feePct), 0, 5);
+    c.slippagePct = clamp(num(c.slippagePct, DEFAULTS.slippagePct), 0, 5);
+    c.fundingPctPer8h = clamp(num(c.fundingPctPer8h, DEFAULTS.fundingPctPer8h), -5, 5);
+    c.hoursPerStep = clamp(num(c.hoursPerStep, DEFAULTS.hoursPerStep), 0.25, 168);
+    c.shockProbabilityPctPerDay = clamp(num(c.shockProbabilityPctPerDay, DEFAULTS.shockProbabilityPctPerDay), 0, 100);
+    c.shockMeanPct = clamp(num(c.shockMeanPct, DEFAULTS.shockMeanPct), -50, 10);
+    c.shockVolPct = clamp(num(c.shockVolPct, DEFAULTS.shockVolPct), 0, 50);
     c.initialMarginPct = clamp(num(c.initialMarginPct, DEFAULTS.initialMarginPct), 0.1, 100);
     c.addMarginPct = clamp(num(c.addMarginPct, DEFAULTS.addMarginPct), 0, 25);
     c.maxMarginUsePct = clamp(num(c.maxMarginUsePct, DEFAULTS.maxMarginUsePct), 1, 95);
@@ -93,13 +102,13 @@
     const bufferHeadroom = headroom - target * d;
     if (bufferHeadroom <= 0) return 0;
     const mmr = rate(c.mmrPct);
-    const fee = rate(c.feePct);
-    const denominator = mmr + fee + target * (1 - mmr);
+    const entryCost = executionCostRate(c);
+    const denominator = mmr + entryCost + target * (1 - mmr);
     const notionalByGap = denominator > 0 ? bufferHeadroom / denominator : 0;
     const maxUse = rate(c.maxMarginUsePct);
     const marginRoom = Math.max(0, maxUse * eq - usedInitialMargin(state, prices, c));
-    // Include the new entry fee in the equity denominator of the margin-utilization cap.
-    const notionalByInitialMargin = marginRoom / (1 / c.leverage + maxUse * rate(c.feePct));
+    // Include fee and slippage in the post-entry equity and margin-use constraint.
+    const notionalByInitialMargin = marginRoom / (1 / c.leverage + maxUse * entryCost);
     return Math.max(0, Math.min(notionalByGap, notionalByInitialMargin));
   }
 
@@ -113,9 +122,11 @@
     const notional = Math.min(desired, cap);
     const minNotional = Math.max(1e-8, c.capital * 1e-9);
     if (!(price > 0) || !(eq > 0) || !(notional >= minNotional)) {
-      return { accepted: false, status: 'blocked', notional: 0, fee: 0 };
+      return { accepted: false, status: 'blocked', notional: 0, fee: 0, slippage: 0, executionCost: 0 };
     }
     const fee = notional * rate(c.feePct);
+    const slippage = notional * rate(c.slippagePct);
+    const executionCost = fee + slippage;
     const position = state.positions[idx];
     const qty = notional / price;
     if (position.qty === 0) {
@@ -128,8 +139,9 @@
       state.addCounts[idx] += 1;
       state.lastAddPrice[idx] = price;
     }
-    state.cash -= fee;
-    return { accepted: true, status: 'added', notional, fee, qty, price };
+    state.cash -= executionCost;
+    state.executionCosts = (state.executionCosts || 0) + executionCost;
+    return { accepted: true, status: 'added', notional, fee, slippage, executionCost, qty, price };
   }
 
   function createInitialState(inputConfig) {
@@ -142,7 +154,9 @@
       addCounts: [0, 0],
       lastAddPrice: [...prices],
       gateBlocks: 0,
-      acceptedAdds: 0
+      acceptedAdds: 0,
+      fundingPaid: 0,
+      executionCosts: 0
     };
     const w = weights(c);
     for (let i = 0; i < 2; i++) {
@@ -218,8 +232,15 @@
       for (let t = 1; t <= c.steps; t++) {
         const z1 = normal();
         const z2 = rho * z1 + orth * normal();
-        const logA = clamp(mu - 0.5 * sigma * sigma + sigma * z1, -8, 8);
-        const logB = clamp(mu - 0.5 * sigma * sigma + sigma * z2, -8, 8);
+        let logA = mu - 0.5 * sigma * sigma + sigma * z1;
+        let logB = mu - 0.5 * sigma * sigma + sigma * z2;
+        const dailyShockProb = rate(c.shockProbabilityPctPerDay);
+        const shockProbPerStep = dailyShockProb >= 1 ? 1 : 1 - Math.pow(1 - dailyShockProb, c.hoursPerStep / 24);
+        if (shockProbPerStep > 0 && rng() < shockProbPerStep) {
+          const commonShock = (c.shockMeanPct + c.shockVolPct * normal()) / 100;
+          logA += commonShock; logB += commonShock;
+        }
+        logA = clamp(logA, -8, 8); logB = clamp(logB, -8, 8);
         a[t] = Math.max(1e-10, a[t - 1] * Math.exp(logA));
         b[t] = Math.max(1e-10, b[t - 1] * Math.exp(logB));
       }
@@ -232,11 +253,26 @@
     const eq = accountEquity(state, prices);
     let notional = 0;
     for (let i = 0; i < 2; i++) notional += state.positions[i].qty * prices[i];
-    const closeFee = notional * rate(c.feePct);
-    const finalEquity = Math.max(0, eq - closeFee);
+    const closeCost = notional * executionCostRate(c);
+    const finalEquity = Math.max(0, eq - closeCost);
+    state.executionCosts += closeCost;
     state.cash = finalEquity;
     state.positions = [{ qty: 0, avgEntry: 0 }, { qty: 0, avgEntry: 0 }];
     return finalEquity;
+  }
+
+  function accrueFunding(state, previousPrices, currentPrices, c) {
+    const ratePerStep = (num(c.fundingPctPer8h, 0) / 100) * (c.hoursPerStep / 8);
+    if (ratePerStep === 0) return 0;
+    let netCost = 0;
+    for (let i = 0; i < 2; i++) {
+      const qty = state.positions[i].qty;
+      if (qty <= 0) continue;
+      netCost += qty * ((previousPrices[i] + currentPrices[i]) / 2) * ratePerStep;
+    }
+    state.cash -= netCost;
+    state.fundingPaid += netCost;
+    return netCost;
   }
 
   function simulateOne(inputConfig, pricePath) {
@@ -259,6 +295,7 @@
     for (let t = 1; t <= c.steps; t++) {
       const prices = pricesAt(t);
       if (closed) { curve.push(equity); continue; }
+      accrueFunding(state, pricesAt(t - 1), prices, c);
       equity = accountEquity(state, prices);
       const mm = maintenanceMargin(state, prices, c);
       if (equity <= mm || equity <= 0) {
@@ -319,20 +356,23 @@
       const grossEq = accountEquity(state, prices);
       let closeNotional = 0;
       for (let i = 0; i < 2; i++) closeNotional += state.positions[i].qty * prices[i];
-      equity = Math.max(0, grossEq - closeNotional * rate(c.feePct));
+      const closeCost = closeNotional * executionCostRate(c);
+      state.executionCosts += closeCost;
+      equity = Math.max(0, grossEq - closeCost);
       curve[curve.length - 1] = equity;
       peakForDrawdown = Math.max(peakForDrawdown, equity);
       maxDrawdownPct = Math.max(maxDrawdownPct, peakForDrawdown > 0 ? (peakForDrawdown - equity) / peakForDrawdown * 100 : 100);
       if (equity <= 0 && grossEq > 0) exitReason = 'horizon-close-out';
     }
 
+    const spotExecutionCost = executionCostRate(c);
     const holdAt = (t) => {
       const p = pricesAt(t);
-      return start * (1 - rate(c.feePct)) * (w[0] * p[0] / c.startingPriceA + w[1] * p[1] / c.startingPriceB);
+      return start * (1 - spotExecutionCost) * (w[0] * p[0] / c.startingPriceA + w[1] * p[1] / c.startingPriceB);
     };
-    const buyHoldFinal = Math.max(0, holdAt(c.steps) * (1 - rate(c.feePct)));
+    const buyHoldFinal = Math.max(0, holdAt(c.steps) * (1 - spotExecutionCost));
     const buyHoldSeries = new Array(c.steps + 1);
-    for (let t = 0; t <= c.steps; t++) buyHoldSeries[t] = t === c.steps ? Math.max(0, holdAt(t) * (1 - rate(c.feePct))) : holdAt(t);
+    for (let t = 0; t <= c.steps; t++) buyHoldSeries[t] = t === c.steps ? Math.max(0, holdAt(t) * (1 - spotExecutionCost)) : holdAt(t);
 
     return {
       finalEquity: equity,
@@ -344,6 +384,8 @@
       exitStep,
       acceptedAdds: state.acceptedAdds,
       gateBlocks: state.gateBlocks,
+      fundingPaid: state.fundingPaid,
+      executionCosts: state.executionCosts,
       curve,
       buyHoldSeries
     };
@@ -375,6 +417,8 @@
     const meanMdd = results.reduce((s, r) => s + r.maxDrawdownPct, 0) / count;
     const meanAdds = results.reduce((s, r) => s + r.acceptedAdds, 0) / count;
     const meanBlocks = results.reduce((s, r) => s + r.gateBlocks, 0) / count;
+    const meanFundingPaid = results.reduce((s, r) => s + r.fundingPaid, 0) / count;
+    const meanExecutionCosts = results.reduce((s, r) => s + r.executionCosts, 0) / count;
     const curve = [];
     const buyHoldCurve = [];
     for (let t = 0; t <= c.steps; t++) {
@@ -393,7 +437,7 @@
         medianMaxDrawdownPct: percentile(mdds, 0.5), meanMaxDrawdownPct: meanMdd,
         liquidationRatePct: liquidations / count * 100, ruinRatePct: ruins / count * 100,
         winRatePct: results.filter(r => r.finalEquity > c.capital).length / count * 100,
-        meanAdds, meanGateBlocks: meanBlocks, meanReturnPct: (meanFinal / c.capital - 1) * 100,
+        meanAdds, meanGateBlocks: meanBlocks, meanFundingPaid, meanExecutionCosts, meanReturnPct: (meanFinal / c.capital - 1) * 100,
         medianReturnPct: (percentile(finals, 0.5) / c.capital - 1) * 100,
         medianBuyHoldReturnPct: (percentile(holds, 0.5) / c.capital - 1) * 100,
         worstFinal: finals[0], bestFinal: finals[finals.length - 1], paths: count, steps: c.steps
@@ -485,7 +529,18 @@
     return candidates.slice(0, 5).map((item, i) => ({ ...item, rank: i + 1 }));
   }
 
-  function formatSnapshot(state, prices, inputConfig) {
+    function scanLeverage(inputConfig, pricePaths, leverageValues) {
+    const base = normalizeConfig(inputConfig);
+    const availablePaths = Array.isArray(pricePaths) && pricePaths.length ? pricePaths.slice(0, Math.min(pricePaths.length, 250)) : generatePricePaths(base, Math.min(base.paths, 250));
+    const choices = Array.isArray(leverageValues) && leverageValues.length ? leverageValues : [2, 3, 5, 8, 10, 15, 20, 25, 50, 75, 100, base.leverage];
+    const leverages = uniqueVals(choices.map(v => clamp(num(v, base.leverage), 1, 100))).sort((a, b) => a - b);
+    return leverages.map(leverage => {
+      const result = runSimulation({ ...base, leverage }, availablePaths), m = result.metrics;
+      return { leverage, meanFinal: m.meanFinal, medianFinal: m.medianFinal, p10Final: m.p10Final, p90Final: m.p90Final, medianReturnPct: m.medianReturnPct, liquidationRatePct: m.liquidationRatePct, ruinRatePct: m.ruinRatePct, medianMaxDrawdownPct: m.medianMaxDrawdownPct, paths: m.paths };
+    });
+  }
+
+function formatSnapshot(state, prices, inputConfig) {
     const c = normalizeConfig(inputConfig);
     const eq = accountEquity(state, prices);
     return {
@@ -504,8 +559,8 @@
     DEFAULTS, normalizeConfig, accountEquity, maintenanceMargin, usedInitialMargin,
     riskDenominator, liquidationGapPct, maxSafeAddNotional, addPosition,
     createInitialState, conditionalLiquidationPrice, generatePricePaths,
-    simulateOne, runSimulation, calculateLadderPlan, optimizeConfig, formatSnapshot,
-    percentile, initialPrices, weights
+    simulateOne, runSimulation, calculateLadderPlan, optimizeConfig, scanLeverage, formatSnapshot,
+    percentile, initialPrices, weights, executionCostRate, accrueFunding
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

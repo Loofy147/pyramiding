@@ -21,7 +21,7 @@
     </header>
 
     <section class="hero">
-      <div><div class="eyebrow">Cross-margin stress workbench</div><h1>Build the ladder.<br>Stress the account.</h1><p>Model a two-asset leveraged pyramid, enforce a minimum liquidation buffer on every add, and compare outcome distributions against a spot buy-and-hold baseline. No exchange connection or live prices.</p></div>
+      <div><div class="eyebrow">Cross-margin stress workbench</div><h1>Build the ladder.<br>Stress the account.</h1><p>Model a two-asset leveraged pyramid with shared equity, per-side trading friction, funding carry and optional common tail shocks. Compare outcomes and leverage levels on the same seeded paths. No exchange connection or live prices.</p></div>
       <div class="hero-actions"><button id="runBtn" class="btn primary">▶ Run stress test</button><button id="optBtn" class="btn">⌘ Find safer settings</button><button id="csvBtn" class="btn subtle">↓ Export CSV</button><button id="jsonBtn" class="btn subtle">↓ Export JSON</button></div>
     </section>
 
@@ -36,9 +36,10 @@
               <div class="field"><label for="leverage">Leverage <em>×</em></label><input id="leverage" type="number" min="1" max="100" step="0.5" value="5" required></div>
               <div class="field"><label for="mmrPct">Maintenance <em>% notional</em></label><input id="mmrPct" type="number" min="0.01" max="20" step="0.05" value="0.5" required></div>
               <div class="field"><label for="feePct">Fee per side <em>% notional</em></label><input id="feePct" type="number" min="0" max="5" step="0.01" value="0.04" required></div>
+              <div class="field"><label for="slippagePct">Slippage per side <em>% notional</em></label><input id="slippagePct" type="number" min="0" max="5" step="0.01" value="0.02" required></div>
               <div class="field"><label for="maxMarginUsePct">Max initial margin <em>% equity</em></label><input id="maxMarginUsePct" type="number" min="1" max="95" step="1" value="40" required></div>
             </div>
-            <div class="help">Flat maintenance rate and fee approximation. Exchange tiers are not loaded.</div>
+            <div class="help">Fee and slippage are charged on entry, adds and modeled exit. Maintenance stays a flat-rate approximation; exchange tiers are not loaded.</div>
           </div>
           <div class="group">
             <div class="group-title"><span class="dot"></span> Pyramiding rules</div>
@@ -75,8 +76,15 @@
               <div class="field"><label for="correlation">Correlation <em>−1 to 1</em></label><input id="correlation" type="number" min="-1" max="1" step="0.05" value="0.65" required></div>
               <div class="field"><label for="seed">Random seed</label><input id="seed" type="number" min="0" max="2147483647" step="1" value="12345" required></div>
             </div>
-            <div class="help">Both assets share one account wallet. Paths are synthetic geometric-return scenarios, not forecasts. The step is user-defined, not a calendar interval.</div>
+            <div class="help">Both assets share one account wallet. Return and volatility inputs apply per step. Hours per step controls funding accrual and converts daily shock probability into step probability.</div>
           </div>
+          <div class="group"><div class="group-title"><span class="dot"></span> Funding & tail-risk stress</div><div class="fields">
+            <div class="field"><label for="fundingPctPer8h">Funding rate <em>% notional / 8h</em></label><input id="fundingPctPer8h" type="number" min="-5" max="5" step="0.005" value="0.01" required></div>
+            <div class="field"><label for="hoursPerStep">Hours per path step</label><input id="hoursPerStep" type="number" min="0.25" max="168" step="0.25" value="24" required></div>
+            <div class="field"><label for="shockProbabilityPctPerDay">Common shock probability <em>% / 24h</em></label><input id="shockProbabilityPctPerDay" type="number" min="0" max="100" step="0.1" value="0" required></div>
+            <div class="field"><label for="shockMeanPct">Shock mean log return <em>% / event</em></label><input id="shockMeanPct" type="number" min="-50" max="10" step="0.5" value="-8" required></div>
+            <div class="field"><label for="shockVolPct">Shock volatility <em>% / event</em></label><input id="shockVolPct" type="number" min="0" max="50" step="0.5" value="3" required></div>
+          </div><div class="help">Funding is charged on average open notional per step; negative rates credit the account. Common shocks hit both assets together. Shock probability defaults to 0% so base runs are not silently stress-biased.</div></div>
           <div class="runbar"><button type="button" id="sideRunBtn" class="btn primary">Run with these inputs</button><button type="button" id="randomSeedBtn" class="btn" title="Create a new deterministic random seed">↻ Seed</button></div>
         </form>
       </aside>
@@ -93,6 +101,8 @@
           <article class="panel metric"><div class="metric-label">Account ruin rate</div><div class="metric-value" id="ruinRate">—</div><div class="metric-foot">Liquidation or zero-equity terminal outcome</div></article>
           <article class="panel metric"><div class="metric-label">Accepted adds / path</div><div class="metric-value" id="meanAdds">—</div><div class="metric-foot">Average successful pyramid additions</div></article>
           <article class="panel metric"><div class="metric-label">Safety-gated attempts / path</div><div class="metric-value" id="meanBlocks">—</div><div class="metric-foot">Attempts blocked by margin or gap limit</div></article>
+          <article class="panel metric"><div class="metric-label">Average net funding / path</div><div class="metric-value" id="meanFunding">—</div><div class="metric-foot">Positive is paid; negative is received</div></article>
+          <article class="panel metric"><div class="metric-label">Average execution costs / path</div><div class="metric-value" id="meanExecutionCosts">—</div><div class="metric-foot">Entry/add and modeled exits; liquidation loss is separate</div></article>
         </section>
 
         <section class="panel section">
@@ -105,7 +115,7 @@
         <section class="panel section">
           <div class="section-title"><div><h2>Deterministic ladder calculator</h2><p>Reference case: both assets rally together by one trigger interval at each level. The gate clips or rejects adds to preserve the configured buffer; this is not a forecast.</p></div><span class="chip">REFERENCE RALLY</span></div>
           <div class="table-wrap"><table><thead><tr><th>Level</th><th>Asset A trigger</th><th>Asset B trigger</th><th>Equity before adds</th><th>Gap before → after</th><th>Asset A add</th><th>Asset B add</th></tr></thead><tbody id="ladderBody"><tr><td colspan="7">Run a stress test to calculate the ladder.</td></tr></tbody></table></div>
-          <div class="formula"><strong>Safety gate</strong> &nbsp; <code>Nmax = (H − bD) / (m + f + b(1 − m))</code><br><span style="color:var(--muted)">H = equity − maintenance margin · D = Σ(q × mark × (1 − m)) · b = target gap · m = maintenance rate · f = estimated entry fee. Add size is additionally capped by available initial-margin capacity.</span></div>
+          <div class="formula"><strong>Safety gate</strong> &nbsp; <code>Nmax = (H − bD) / (m + c + b(1 − m))</code><br><span style="color:var(--muted)">H = equity − maintenance margin · D = Σ(q × mark × (1 − m)) · b = target gap · m = maintenance rate · c = fee + slippage per-side entry cost. Add size is additionally capped by available initial-margin capacity.</span></div>
         </section>
 
         <section class="panel section">
@@ -117,19 +127,21 @@
         <section class="panel section">
           <div class="section-title"><div><h2>Optimization candidates</h2><p>Small grid search over ladder interval, add size and safety buffer. Ranked by a transparent risk-adjusted score using the same sample paths; results are in-sample and require out-of-sample validation.</p></div><button id="optSectionBtn" class="btn">Run optimizer</button></div>
           <div id="optimizerWrap" class="blank">Optimizer has not run. It evaluates up to 27 parameter combinations using up to 250 common seeded paths.</div>
+          <div class="section-title" style="margin-top:18px"><div><h3>Leverage sensitivity scan</h3><p>Compares leverage candidates on the same price paths. Higher mean return is not automatically safer.</p></div><button id="scanLeverageBtn" class="btn">Scan leverage</button></div>
+          <div id="leverageScanWrap" class="blank">Run a leverage scan to compare leverage settings on the same seeded scenarios.</div>
         </section>
 
         <section class="panel fineprint">
           <h3>Model scope & known limitations</h3>
-          <p><strong>Modeled:</strong> two long-only linear assets, shared wallet equity, constant maintenance-margin percentage, fee-per-side approximation, leverage-based margin capacity, correlated log-return paths, per-add safety gating, hard stop, trailing-equity stop, breakeven lock, liquidation/ruin tracking, terminal percentiles and spot baseline.</p>
-          <p><strong>Not modeled:</strong> exchange-specific risk tiers and deductions, mark/index basis, funding payments, spread/slippage beyond the fee assumption, partial liquidation, close-order execution gaps, hedge/short positions, portfolio offsets, exchange outages or real market data. Liquidation is conservatively recorded as total modeled equity loss once the account crosses maintenance.</p>
+          <p><strong>Modeled:</strong> two long-only linear assets with shared equity, a flat maintenance rate, per-side fee and slippage costs, signed funding accrual from average pre/post-step marks, correlated synthetic log returns, optional common tail shocks, add safety gates, exit rules, liquidation/ruin tracking, percentile bands and spot baseline.</p>
+          <p><strong>Not modeled:</strong> exchange-specific risk tiers, partial liquidation, liquidation penalties, order-book fill impact, outages, shorts/hedges or live market data. Slippage is an additive cost, not a changed fill price. Funding is a constant configured rate approximated from average notional; tail shocks are stress assumptions. Liquidation is conservatively treated as total modeled equity loss.</p>
           <p>For exchange-specific context, see the official rule descriptions. Their examples and formulas are venue- and contract-dependent:</p>
           <div class="source-links"><a href="https://www.binance.com/en/support/faq/detail/360033525271" target="_blank" rel="noreferrer">Binance liquidation protocol ↗</a><a href="https://www.binance.com/en/support/faq/detail/b3c689c1f50a44cabb3a84e663b81d93" target="_blank" rel="noreferrer">Binance USDT-M calculation ↗</a><a href="https://www.bybit.com/en/help-center/article/UTA-Trading-Rules-Liquidation-Process" target="_blank" rel="noreferrer">Bybit cross-margin process ↗</a></div>
           <p>This tool is for analytical testing and software validation only. It does not provide investment advice or establish a profitable strategy.</p>
         </section>
       </main>
     </div>
-    <footer class="footer"><span>PYRAMID RISK LAB · v1.0.0 · browser-local calculations</span><span>Seeded runs are reproducible for the same inputs and software version.</span></footer>
+    <footer class="footer"><span>PYRAMID RISK LAB · v1.1.0 · browser-local calculations</span><span>Seeded runs are reproducible for the same inputs and software version.</span></footer>
   </div>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <script src="engine.js"></script>
@@ -137,7 +149,7 @@
     (() => {
       'use strict';
       const $ = (id) => document.getElementById(id);
-      const inputIds = ['capital','leverage','mmrPct','feePct','initialMarginPct','addMarginPct','maxMarginUsePct','safetyBufferPct','ladderStepPct','maxAdds','hardStopPct','trailingStopPct','trailActivationPct','breakevenActivationPct','breakevenLockPct','startingPriceA','startingPriceB','weightA','steps','paths','driftPct','volPct','correlation','seed'];
+      const inputIds = ['capital','leverage','mmrPct','feePct','slippagePct','fundingPctPer8h','hoursPerStep','shockProbabilityPctPerDay','shockMeanPct','shockVolPct','initialMarginPct','addMarginPct','maxMarginUsePct','safetyBufferPct','ladderStepPct','maxAdds','hardStopPct','trailingStopPct','trailActivationPct','breakevenActivationPct','breakevenLockPct','startingPriceA','startingPriceB','weightA','steps','paths','driftPct','volPct','correlation','seed'];
       let currentConfig = null, currentPaths = null, currentResult = null, currentLadder = null, optimizerCandidates = null;
       let toastTimer = null;
       const usd = (v, decimals = 0) => Number.isFinite(v) ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:decimals,minimumFractionDigits:decimals}).format(v) : '—';
@@ -166,6 +178,7 @@
         const delta=m.medianFinal-m.medianBuyHold; $('vsHold').textContent=`${delta>=0?'+':'−'}${usd(Math.abs(delta))}`; $('vsHold').className='metric-value '+(delta>=0?'good':'bad'); $('holdFoot').textContent=`Median spot baseline: ${usd(m.medianBuyHold)} (${pct(m.medianBuyHoldReturnPct)} return)`;
         $('ruinRate').textContent=pct(m.ruinRatePct); $('ruinRate').className='metric-value '+(m.ruinRatePct===0?'good':'bad');
         $('meanAdds').textContent=m.meanAdds.toFixed(1); $('meanBlocks').textContent=m.meanGateBlocks.toFixed(1);
+        $('meanFunding').textContent=usd(m.meanFundingPaid,2); $('meanExecutionCosts').textContent=usd(m.meanExecutionCosts,2);
         const labels={'horizon':'Horizon open','horizon-close-out':'Zero at close-out','hard-stop':'Hard stop','trailing-stop':'Trailing stop','breakeven-lock':'Breakeven lock','liquidation':'Liquidated'};
         $('exitBreakdown').innerHTML='<strong style="color:#bbc9dc">Exit mix:</strong> '+Object.entries(r.exitCounts).sort((a,b)=>b[1]-a[1]).map(([key,count])=>`<span class="chip">${escapeHtml(labels[key]||key)} · ${count}</span>`).join('');
       }
@@ -209,8 +222,9 @@
           optimizerCandidates=null;
           renderMetrics(currentResult); renderChart(currentResult); renderLadder(currentLadder); renderSnapshot(c);
           $('optimizerWrap').className='blank';$('optimizerWrap').textContent='Optimizer has not run. It evaluates up to 27 parameter combinations using up to 250 common seeded paths.';
-          $('statusText').textContent=`Run complete · ${currentResult.metrics.paths.toLocaleString()} paths × ${c.steps} steps · seed ${c.seed}`;
-          $('configStatus').innerHTML=`<strong>Cross-margin model</strong> · ${c.leverage}× leverage · ${c.correlation.toFixed(2)} correlation`;
+          $('leverageScanWrap').className='blank';$('leverageScanWrap').textContent='Run a leverage scan to compare leverage settings on the same seeded scenarios.';
+          $('statusText').textContent=`Run complete · ${currentResult.metrics.paths.toLocaleString()} paths × ${c.steps} steps · ${c.hoursPerStep}h/step · seed ${c.seed}`;
+          $('configStatus').innerHTML=`<strong>Cross-margin model</strong> · ${c.leverage}× leverage · ${c.correlation.toFixed(2)} correlation · funding ${pct(c.fundingPctPer8h,3)}/8h · shocks ${pct(c.shockProbabilityPctPerDay,2)}/day`;
           notify('Stress test completed with deterministic inputs.');
         } catch(e) { notify(e.message||'Unable to run the simulation.'); }
       }
@@ -226,6 +240,17 @@
           notify('Optimization candidates ranked. Validate the selected settings out of sample.');
         } catch(e) { $('optimizerWrap').className='blank';$('optimizerWrap').textContent=`Optimizer failed: ${e.message}`;notify('Optimizer failed. Review inputs.'); }
       }
+      function runLeverageScan() {
+        if(!currentConfig || !currentPaths) runSimulation();
+        if(!currentConfig || !currentPaths) return;
+        try {
+          const rows=PyramidEngine.scanLeverage(currentConfig,currentPaths);
+          $('leverageScanWrap').className='table-wrap';
+          $('leverageScanWrap').innerHTML=`<table class="opt-table"><thead><tr><th>Leverage</th><th>Median final</th><th>Median return</th><th>Liquidation</th><th>Ruin</th><th>Median drawdown</th></tr></thead><tbody>${rows.map(r=>`<tr><td><strong>${r.leverage}×</strong>${r.leverage===currentConfig.leverage?' · current':''}</td><td>${usd(r.medianFinal)}</td><td class="${r.medianReturnPct>=0?'good':'bad'}">${pct(r.medianReturnPct,1)}</td><td class="${r.liquidationRatePct===0?'good':r.liquidationRatePct<5?'warn':'bad'}">${pct(r.liquidationRatePct,1)}</td><td>${pct(r.ruinRatePct,1)}</td><td>${pct(r.medianMaxDrawdownPct,1)}</td></tr>`).join('')}</tbody></table><p class="help">Each row uses the same ${rows[0]?.paths||0} seeded price paths.</p>`;
+          $('statusText').textContent=`Leverage scan complete · ${rows.length} leverage settings · common sample ${rows[0]?.paths||0} paths`;
+          notify('Leverage scan completed on common price paths.');
+        } catch(e) { $('leverageScanWrap').className='blank';$('leverageScanWrap').textContent=`Leverage scan failed: ${e.message}`;notify('Leverage scan failed. Review inputs.'); }
+      }
       function setInput(id,value){$(id).value=value;}
       function exportCsv() {
         if(!currentResult){notify('Run a stress test before exporting.');return;}
@@ -236,7 +261,7 @@
       }
       function exportJson() {
         if(!currentResult){notify('Run a stress test before exporting.');return;}
-        const payload={schemaVersion:'1.0.0',exportedAt:new Date().toISOString(),model:'two-asset correlated synthetic path; linear long-only cross-margin approximation',config:currentConfig,metrics:currentResult.metrics,exitCounts:currentResult.exitCounts,curve:currentResult.curve,buyHoldCurve:currentResult.buyHoldCurve,ladderPlan:currentLadder,optimizerCandidates,limitations:['Not exchange-specific liquidation math','No funding or spread/slippage beyond configured fee','Constant maintenance rate; no risk tiers','Synthetic prices; not forecasts','Liquidation conservatively sets modeled equity to zero']};
+        const payload={schemaVersion:'1.1.0',exportedAt:new Date().toISOString(),model:'two-asset correlated synthetic paths; linear long-only cross-margin approximation with per-side execution costs, configured funding and optional common tail shocks',config:currentConfig,metrics:currentResult.metrics,exitCounts:currentResult.exitCounts,curve:currentResult.curve,buyHoldCurve:currentResult.buyHoldCurve,ladderPlan:currentLadder,optimizerCandidates,limitations:['Not exchange-specific liquidation math','Funding uses a constant configured rate and average pre/post-step notional','Slippage is charged as a cost rather than simulated as a changed fill price','Constant maintenance rate; no risk tiers or partial liquidation','Tail-shock settings are stress assumptions, not calibrated market estimates','Synthetic prices; not forecasts','Liquidation conservatively sets modeled equity to zero']};
         downloadFile(`pyramid-risk-results-seed-${currentConfig.seed}.json`,JSON.stringify(payload,null,2),'application/json;charset=utf-8');
         notify('JSON results bundle created.');
       }
@@ -247,6 +272,7 @@
       $('sideRunBtn').addEventListener('click',()=>runSimulation());
       $('optBtn').addEventListener('click',runOptimizer);
       $('optSectionBtn').addEventListener('click',runOptimizer);
+      $('scanLeverageBtn').addEventListener('click',runLeverageScan);
       $('csvBtn').addEventListener('click',exportCsv);
       $('jsonBtn').addEventListener('click',exportJson);
       $('resetBtn').addEventListener('click',resetDefaults);
