@@ -1,8 +1,8 @@
 {
   "name": "pyramid-risk-lab",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
-  "description": "Local-first leveraged pyramiding, funding and tail-risk stress simulator",
+  "description": "Local-first leveraged pyramiding, funding and uptrend profit-extraction simulator",
   "scripts": {
     "test": "node --test",
     "build:standalone": "node tools/build-standalone.js"

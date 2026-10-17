@@ -434,9 +434,11 @@
       metrics: {
         p10Final: percentile(finals, 0.1), medianFinal: percentile(finals, 0.5), p90Final: percentile(finals, 0.9),
         meanFinal, medianBuyHold: percentile(holds, 0.5), meanBuyHold: meanHold,
-        medianMaxDrawdownPct: percentile(mdds, 0.5), meanMaxDrawdownPct: meanMdd,
+        medianMaxDrawdownPct: percentile(mdds, 0.5), p90MaxDrawdownPct: percentile(mdds, 0.9), meanMaxDrawdownPct: meanMdd,
         liquidationRatePct: liquidations / count * 100, ruinRatePct: ruins / count * 100,
         winRatePct: results.filter(r => r.finalEquity > c.capital).length / count * 100,
+        outperformBuyHoldPct: results.filter(r => r.finalEquity > r.buyHoldFinal).length / count * 100,
+        medianOutperformancePct: percentile(holds, 0.5) > 0 ? (percentile(finals, 0.5) / percentile(holds, 0.5) - 1) * 100 : 0,
         meanAdds, meanGateBlocks: meanBlocks, meanFundingPaid, meanExecutionCosts, meanReturnPct: (meanFinal / c.capital - 1) * 100,
         medianReturnPct: (percentile(finals, 0.5) / c.capital - 1) * 100,
         medianBuyHoldReturnPct: (percentile(holds, 0.5) / c.capital - 1) * 100,
@@ -529,6 +531,73 @@
     return candidates.slice(0, 5).map((item, i) => ({ ...item, rank: i + 1 }));
   }
 
+  function optimizeUpsideConfig(inputConfig, pricePaths) {
+    const base = normalizeConfig(inputConfig);
+    if (base.driftPct <= 0) throw new Error('Upside optimization requires a positive drift assumption.');
+    const available = Array.isArray(pricePaths) && pricePaths.length ? pricePaths : generatePricePaths(base, Math.min(base.paths, 100));
+    const paths = available.slice(0, Math.min(available.length, 100));
+    const adds = uniqueVals([0, base.addMarginPct, Math.min(10, Math.max(2, base.addMarginPct * 2))]);
+    const steps = uniqueVals([Math.max(0.25, base.ladderStepPct - 1), base.ladderStepPct, Math.min(25, base.ladderStepPct + 1)]);
+    const marginUses = uniqueVals([base.maxMarginUsePct, Math.min(85, base.maxMarginUsePct + 10), Math.min(90, base.maxMarginUsePct + 20)]);
+    const addCounts = uniqueVals([base.maxAdds, Math.max(12, base.maxAdds)]);
+    const trails = uniqueVals([Math.max(5, base.trailingStopPct), Math.min(40, Math.max(base.trailingStopPct + 10, 18)), Math.min(50, Math.max(base.trailingStopPct + 20, 30))]);
+    const trailArms = uniqueVals([base.trailActivationPct, Math.min(75, Math.max(25, base.trailActivationPct + 20))]);
+    if (!paths.length) throw new Error('At least one path is required for upside optimization.');
+
+    const bm = runSimulation(base, paths).metrics;
+    const baseline = {
+      leverage: base.leverage, initialMarginPct: base.initialMarginPct,
+      hardStopPct: base.hardStopPct, breakevenActivationPct: base.breakevenActivationPct,
+      medianFinal: bm.medianFinal, p10Final: bm.p10Final, p90Final: bm.p90Final,
+      medianReturnPct: bm.medianReturnPct, outperformBuyHoldPct: bm.outperformBuyHoldPct,
+      medianOutperformancePct: bm.medianOutperformancePct,
+      medianMaxDrawdownPct: bm.medianMaxDrawdownPct, p90MaxDrawdownPct: bm.p90MaxDrawdownPct,
+      liquidationRatePct: bm.liquidationRatePct, paths: bm.paths
+    };
+    const candidates = [];
+    for (const add of adds) for (const step of steps) for (const marginUse of marginUses)
+      for (const maxAdds of addCounts) for (const trail of trails) for (const arm of trailArms) {
+        // Keep the original ticket's leverage and initial-margin allocation fixed.
+        // Rider candidates deliberately disable early hard-stop/BE exits to test profit capture.
+        const candidate = normalizeConfig({
+          ...base, addMarginPct: add, ladderStepPct: step, maxMarginUsePct: marginUse,
+          maxAdds, trailingStopPct: trail, trailActivationPct: arm,
+          hardStopPct: 0, breakevenActivationPct: 500, breakevenLockPct: 0
+        });
+        const runs = paths.map(path => simulateOne(candidate, path));
+        const finals = runs.map(r => r.finalEquity).sort((a, b) => a - b);
+        const holds = runs.map(r => r.buyHoldFinal).sort((a, b) => a - b);
+        const drawdowns = runs.map(r => r.maxDrawdownPct).sort((a, b) => a - b);
+        const medianFinal = percentile(finals, 0.5), p10Final = percentile(finals, 0.1);
+        const medianHold = percentile(holds, 0.5);
+        const medianReturnPct = (medianFinal / candidate.capital - 1) * 100;
+        const p10ReturnPct = (p10Final / candidate.capital - 1) * 100;
+        const outperformBuyHoldPct = runs.filter(r => r.finalEquity > r.buyHoldFinal).length / runs.length * 100;
+        const medianOutperformancePct = medianHold > 0 ? (medianFinal / medianHold - 1) * 100 : 0;
+        const medianMaxDrawdownPct = percentile(drawdowns, 0.5), p90MaxDrawdownPct = percentile(drawdowns, 0.9);
+        const liquidationRatePct = runs.filter(r => r.liquidated).length / runs.length * 100;
+        const ruinRatePct = runs.filter(r => r.ruin).length / runs.length * 100;
+        const meanAdds = runs.reduce((sum, r) => sum + r.acceptedAdds, 0) / runs.length;
+        const score = 0.4 * medianReturnPct + 0.25 * p10ReturnPct + 0.35 * medianOutperformancePct
+          - 0.4 * medianMaxDrawdownPct - 0.5 * Math.max(0, p90MaxDrawdownPct - 35) - 10 * liquidationRatePct;
+        candidates.push({
+          config: {
+            leverage: candidate.leverage, initialMarginPct: candidate.initialMarginPct,
+            addMarginPct: candidate.addMarginPct, ladderStepPct: candidate.ladderStepPct,
+            maxMarginUsePct: candidate.maxMarginUsePct, maxAdds: candidate.maxAdds,
+            safetyBufferPct: candidate.safetyBufferPct, hardStopPct: candidate.hardStopPct,
+            trailingStopPct: candidate.trailingStopPct, trailActivationPct: candidate.trailActivationPct,
+            breakevenActivationPct: candidate.breakevenActivationPct, breakevenLockPct: candidate.breakevenLockPct
+          },
+          score, medianFinal, p10Final, p90Final: percentile(finals, 0.9), medianReturnPct, p10ReturnPct,
+          outperformBuyHoldPct, medianOutperformancePct, medianMaxDrawdownPct, p90MaxDrawdownPct,
+          liquidationRatePct, ruinRatePct, meanAdds, paths: paths.length
+        });
+      }
+    candidates.sort((a, b) => b.score - a.score || b.p10Final - a.p10Final || a.liquidationRatePct - b.liquidationRatePct);
+    return { baseline, candidates: candidates.slice(0, 8).map((item, i) => ({ ...item, rank: i + 1 })), evaluatedCandidates: candidates.length, paths: paths.length };
+  }
+
     function scanLeverage(inputConfig, pricePaths, leverageValues) {
     const base = normalizeConfig(inputConfig);
     const availablePaths = Array.isArray(pricePaths) && pricePaths.length ? pricePaths.slice(0, Math.min(pricePaths.length, 250)) : generatePricePaths(base, Math.min(base.paths, 250));
@@ -559,7 +628,7 @@ function formatSnapshot(state, prices, inputConfig) {
     DEFAULTS, normalizeConfig, accountEquity, maintenanceMargin, usedInitialMargin,
     riskDenominator, liquidationGapPct, maxSafeAddNotional, addPosition,
     createInitialState, conditionalLiquidationPrice, generatePricePaths,
-    simulateOne, runSimulation, calculateLadderPlan, optimizeConfig, scanLeverage, formatSnapshot,
+    simulateOne, runSimulation, calculateLadderPlan, optimizeConfig, optimizeUpsideConfig, scanLeverage, formatSnapshot,
     percentile, initialPrices, weights, executionCostRate, accrueFunding
   };
 

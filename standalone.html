@@ -98,6 +98,8 @@
           <article class="panel metric"><div class="metric-label">Liquidation rate</div><div class="metric-value" id="liqRate">—</div><div class="metric-foot" id="liqFoot">Paths liquidated under model assumptions</div></article>
           <article class="panel metric"><div class="metric-label">Median max drawdown</div><div class="metric-value" id="mdd">—</div><div class="metric-foot">Peak-to-trough equity drawdown</div></article>
           <article class="panel metric"><div class="metric-label">Median vs buy-and-hold</div><div class="metric-value" id="vsHold">—</div><div class="metric-foot" id="holdFoot">Same starting capital and asset weights</div></article>
+          <article class="panel metric"><div class="metric-label">Paths beating buy-and-hold</div><div class="metric-value" id="outperformHold">—</div><div class="metric-foot">Matched paths with higher terminal equity than spot baseline</div></article>
+          <article class="panel metric"><div class="metric-label">90th percentile max drawdown</div><div class="metric-value" id="p90Mdd">—</div><div class="metric-foot">Adverse drawdown tail across paths</div></article>
           <article class="panel metric"><div class="metric-label">Account ruin rate</div><div class="metric-value" id="ruinRate">—</div><div class="metric-foot">Liquidation or zero-equity terminal outcome</div></article>
           <article class="panel metric"><div class="metric-label">Accepted adds / path</div><div class="metric-value" id="meanAdds">—</div><div class="metric-foot">Average successful pyramid additions</div></article>
           <article class="panel metric"><div class="metric-label">Safety-gated attempts / path</div><div class="metric-value" id="meanBlocks">—</div><div class="metric-foot">Attempts blocked by margin or gap limit</div></article>
@@ -127,6 +129,8 @@
         <section class="panel section">
           <div class="section-title"><div><h2>Optimization candidates</h2><p>Small grid search over ladder interval, add size and safety buffer. Ranked by a transparent risk-adjusted score using the same sample paths; results are in-sample and require out-of-sample validation.</p></div><button id="optSectionBtn" class="btn">Run optimizer</button></div>
           <div id="optimizerWrap" class="blank">Optimizer has not run. It evaluates up to 27 parameter combinations using up to 250 common seeded paths.</div>
+          <div class="section-title" style="margin-top:18px"><div><h3>Optimize uptrend profit extraction</h3><p>For an existing ticket, not entry discovery. It keeps the entry anchors, leverage and initial-margin allocation fixed, then tests addition size/spacing, margin capacity and trailing exits. Rider candidates disable the early hard stop and breakeven lock; inspect P10 outcomes and drawdown tails before applying.</p></div><button id="upsideOptBtn" class="btn">Optimize trend rider</button></div>
+          <div id="upsideOptimizerWrap" class="blank">Run the uptrend optimizer to compare add ladders and trailing exits while keeping the original entry, leverage and initial margin fixed.</div>
           <div class="section-title" style="margin-top:18px"><div><h3>Leverage sensitivity scan</h3><p>Compares leverage candidates on the same price paths. Higher mean return is not automatically safer.</p></div><button id="scanLeverageBtn" class="btn">Scan leverage</button></div>
           <div id="leverageScanWrap" class="blank">Run a leverage scan to compare leverage settings on the same seeded scenarios.</div>
         </section>
@@ -141,7 +145,7 @@
         </section>
       </main>
     </div>
-    <footer class="footer"><span>PYRAMID RISK LAB · v1.1.0 · browser-local calculations</span><span>Seeded runs are reproducible for the same inputs and software version.</span></footer>
+    <footer class="footer"><span>PYRAMID RISK LAB · v1.2.0 · browser-local calculations</span><span>Seeded runs are reproducible for the same inputs and software version.</span></footer>
   </div>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <script>
@@ -581,9 +585,11 @@
       metrics: {
         p10Final: percentile(finals, 0.1), medianFinal: percentile(finals, 0.5), p90Final: percentile(finals, 0.9),
         meanFinal, medianBuyHold: percentile(holds, 0.5), meanBuyHold: meanHold,
-        medianMaxDrawdownPct: percentile(mdds, 0.5), meanMaxDrawdownPct: meanMdd,
+        medianMaxDrawdownPct: percentile(mdds, 0.5), p90MaxDrawdownPct: percentile(mdds, 0.9), meanMaxDrawdownPct: meanMdd,
         liquidationRatePct: liquidations / count * 100, ruinRatePct: ruins / count * 100,
         winRatePct: results.filter(r => r.finalEquity > c.capital).length / count * 100,
+        outperformBuyHoldPct: results.filter(r => r.finalEquity > r.buyHoldFinal).length / count * 100,
+        medianOutperformancePct: percentile(holds, 0.5) > 0 ? (percentile(finals, 0.5) / percentile(holds, 0.5) - 1) * 100 : 0,
         meanAdds, meanGateBlocks: meanBlocks, meanFundingPaid, meanExecutionCosts, meanReturnPct: (meanFinal / c.capital - 1) * 100,
         medianReturnPct: (percentile(finals, 0.5) / c.capital - 1) * 100,
         medianBuyHoldReturnPct: (percentile(holds, 0.5) / c.capital - 1) * 100,
@@ -676,6 +682,73 @@
     return candidates.slice(0, 5).map((item, i) => ({ ...item, rank: i + 1 }));
   }
 
+  function optimizeUpsideConfig(inputConfig, pricePaths) {
+    const base = normalizeConfig(inputConfig);
+    if (base.driftPct <= 0) throw new Error('Upside optimization requires a positive drift assumption.');
+    const available = Array.isArray(pricePaths) && pricePaths.length ? pricePaths : generatePricePaths(base, Math.min(base.paths, 100));
+    const paths = available.slice(0, Math.min(available.length, 100));
+    const adds = uniqueVals([0, base.addMarginPct, Math.min(10, Math.max(2, base.addMarginPct * 2))]);
+    const steps = uniqueVals([Math.max(0.25, base.ladderStepPct - 1), base.ladderStepPct, Math.min(25, base.ladderStepPct + 1)]);
+    const marginUses = uniqueVals([base.maxMarginUsePct, Math.min(85, base.maxMarginUsePct + 10), Math.min(90, base.maxMarginUsePct + 20)]);
+    const addCounts = uniqueVals([base.maxAdds, Math.max(12, base.maxAdds)]);
+    const trails = uniqueVals([Math.max(5, base.trailingStopPct), Math.min(40, Math.max(base.trailingStopPct + 10, 18)), Math.min(50, Math.max(base.trailingStopPct + 20, 30))]);
+    const trailArms = uniqueVals([base.trailActivationPct, Math.min(75, Math.max(25, base.trailActivationPct + 20))]);
+    if (!paths.length) throw new Error('At least one path is required for upside optimization.');
+
+    const bm = runSimulation(base, paths).metrics;
+    const baseline = {
+      leverage: base.leverage, initialMarginPct: base.initialMarginPct,
+      hardStopPct: base.hardStopPct, breakevenActivationPct: base.breakevenActivationPct,
+      medianFinal: bm.medianFinal, p10Final: bm.p10Final, p90Final: bm.p90Final,
+      medianReturnPct: bm.medianReturnPct, outperformBuyHoldPct: bm.outperformBuyHoldPct,
+      medianOutperformancePct: bm.medianOutperformancePct,
+      medianMaxDrawdownPct: bm.medianMaxDrawdownPct, p90MaxDrawdownPct: bm.p90MaxDrawdownPct,
+      liquidationRatePct: bm.liquidationRatePct, paths: bm.paths
+    };
+    const candidates = [];
+    for (const add of adds) for (const step of steps) for (const marginUse of marginUses)
+      for (const maxAdds of addCounts) for (const trail of trails) for (const arm of trailArms) {
+        // Keep the original ticket's leverage and initial-margin allocation fixed.
+        // Rider candidates deliberately disable early hard-stop/BE exits to test profit capture.
+        const candidate = normalizeConfig({
+          ...base, addMarginPct: add, ladderStepPct: step, maxMarginUsePct: marginUse,
+          maxAdds, trailingStopPct: trail, trailActivationPct: arm,
+          hardStopPct: 0, breakevenActivationPct: 500, breakevenLockPct: 0
+        });
+        const runs = paths.map(path => simulateOne(candidate, path));
+        const finals = runs.map(r => r.finalEquity).sort((a, b) => a - b);
+        const holds = runs.map(r => r.buyHoldFinal).sort((a, b) => a - b);
+        const drawdowns = runs.map(r => r.maxDrawdownPct).sort((a, b) => a - b);
+        const medianFinal = percentile(finals, 0.5), p10Final = percentile(finals, 0.1);
+        const medianHold = percentile(holds, 0.5);
+        const medianReturnPct = (medianFinal / candidate.capital - 1) * 100;
+        const p10ReturnPct = (p10Final / candidate.capital - 1) * 100;
+        const outperformBuyHoldPct = runs.filter(r => r.finalEquity > r.buyHoldFinal).length / runs.length * 100;
+        const medianOutperformancePct = medianHold > 0 ? (medianFinal / medianHold - 1) * 100 : 0;
+        const medianMaxDrawdownPct = percentile(drawdowns, 0.5), p90MaxDrawdownPct = percentile(drawdowns, 0.9);
+        const liquidationRatePct = runs.filter(r => r.liquidated).length / runs.length * 100;
+        const ruinRatePct = runs.filter(r => r.ruin).length / runs.length * 100;
+        const meanAdds = runs.reduce((sum, r) => sum + r.acceptedAdds, 0) / runs.length;
+        const score = 0.4 * medianReturnPct + 0.25 * p10ReturnPct + 0.35 * medianOutperformancePct
+          - 0.4 * medianMaxDrawdownPct - 0.5 * Math.max(0, p90MaxDrawdownPct - 35) - 10 * liquidationRatePct;
+        candidates.push({
+          config: {
+            leverage: candidate.leverage, initialMarginPct: candidate.initialMarginPct,
+            addMarginPct: candidate.addMarginPct, ladderStepPct: candidate.ladderStepPct,
+            maxMarginUsePct: candidate.maxMarginUsePct, maxAdds: candidate.maxAdds,
+            safetyBufferPct: candidate.safetyBufferPct, hardStopPct: candidate.hardStopPct,
+            trailingStopPct: candidate.trailingStopPct, trailActivationPct: candidate.trailActivationPct,
+            breakevenActivationPct: candidate.breakevenActivationPct, breakevenLockPct: candidate.breakevenLockPct
+          },
+          score, medianFinal, p10Final, p90Final: percentile(finals, 0.9), medianReturnPct, p10ReturnPct,
+          outperformBuyHoldPct, medianOutperformancePct, medianMaxDrawdownPct, p90MaxDrawdownPct,
+          liquidationRatePct, ruinRatePct, meanAdds, paths: paths.length
+        });
+      }
+    candidates.sort((a, b) => b.score - a.score || b.p10Final - a.p10Final || a.liquidationRatePct - b.liquidationRatePct);
+    return { baseline, candidates: candidates.slice(0, 8).map((item, i) => ({ ...item, rank: i + 1 })), evaluatedCandidates: candidates.length, paths: paths.length };
+  }
+
     function scanLeverage(inputConfig, pricePaths, leverageValues) {
     const base = normalizeConfig(inputConfig);
     const availablePaths = Array.isArray(pricePaths) && pricePaths.length ? pricePaths.slice(0, Math.min(pricePaths.length, 250)) : generatePricePaths(base, Math.min(base.paths, 250));
@@ -706,7 +779,7 @@ function formatSnapshot(state, prices, inputConfig) {
     DEFAULTS, normalizeConfig, accountEquity, maintenanceMargin, usedInitialMargin,
     riskDenominator, liquidationGapPct, maxSafeAddNotional, addPosition,
     createInitialState, conditionalLiquidationPrice, generatePricePaths,
-    simulateOne, runSimulation, calculateLadderPlan, optimizeConfig, scanLeverage, formatSnapshot,
+    simulateOne, runSimulation, calculateLadderPlan, optimizeConfig, optimizeUpsideConfig, scanLeverage, formatSnapshot,
     percentile, initialPrices, weights, executionCostRate, accrueFunding
   };
 
@@ -720,7 +793,7 @@ function formatSnapshot(state, prices, inputConfig) {
       'use strict';
       const $ = (id) => document.getElementById(id);
       const inputIds = ['capital','leverage','mmrPct','feePct','slippagePct','fundingPctPer8h','hoursPerStep','shockProbabilityPctPerDay','shockMeanPct','shockVolPct','initialMarginPct','addMarginPct','maxMarginUsePct','safetyBufferPct','ladderStepPct','maxAdds','hardStopPct','trailingStopPct','trailActivationPct','breakevenActivationPct','breakevenLockPct','startingPriceA','startingPriceB','weightA','steps','paths','driftPct','volPct','correlation','seed'];
-      let currentConfig = null, currentPaths = null, currentResult = null, currentLadder = null, optimizerCandidates = null;
+      let currentConfig = null, currentPaths = null, currentResult = null, currentLadder = null, optimizerCandidates = null, upsideOptimizerCandidates = null;
       let toastTimer = null;
       const usd = (v, decimals = 0) => Number.isFinite(v) ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:decimals,minimumFractionDigits:decimals}).format(v) : '—';
       const money = (v, decimals = 0) => Number.isFinite(v) ? new Intl.NumberFormat('en-US',{maximumFractionDigits:decimals,minimumFractionDigits:decimals}).format(v) : '—';
@@ -745,6 +818,8 @@ function formatSnapshot(state, prices, inputConfig) {
         $('p10Final').textContent=usd(m.p10Final); $('p90Final').textContent=usd(m.p90Final);
         $('liqRate').textContent=pct(m.liquidationRatePct); $('liqRate').className='metric-value '+(m.liquidationRatePct===0?'good':m.liquidationRatePct<5?'warn':'bad'); $('liqFoot').textContent=`${Math.round(m.liquidationRatePct*m.paths/100)} of ${m.paths} paths liquidated under model assumptions`;
         $('mdd').textContent=pct(m.medianMaxDrawdownPct); $('mdd').className='metric-value '+(m.medianMaxDrawdownPct<15?'good':m.medianMaxDrawdownPct<30?'warn':'bad');
+        $('p90Mdd').textContent=pct(m.p90MaxDrawdownPct); $('p90Mdd').className='metric-value '+(m.p90MaxDrawdownPct<25?'good':m.p90MaxDrawdownPct<40?'warn':'bad');
+        $('outperformHold').textContent=pct(m.outperformBuyHoldPct); $('outperformHold').className='metric-value '+(m.outperformBuyHoldPct>=60?'good':m.outperformBuyHoldPct>=45?'warn':'bad');
         const delta=m.medianFinal-m.medianBuyHold; $('vsHold').textContent=`${delta>=0?'+':'−'}${usd(Math.abs(delta))}`; $('vsHold').className='metric-value '+(delta>=0?'good':'bad'); $('holdFoot').textContent=`Median spot baseline: ${usd(m.medianBuyHold)} (${pct(m.medianBuyHoldReturnPct)} return)`;
         $('ruinRate').textContent=pct(m.ruinRatePct); $('ruinRate').className='metric-value '+(m.ruinRatePct===0?'good':'bad');
         $('meanAdds').textContent=m.meanAdds.toFixed(1); $('meanBlocks').textContent=m.meanGateBlocks.toFixed(1);
@@ -789,9 +864,10 @@ function formatSnapshot(state, prices, inputConfig) {
           if(!keepPaths || !currentPaths || currentPaths.length!==c.paths || currentPaths[0].a.length!==c.steps+1) currentPaths=PyramidEngine.generatePricePaths(c,c.paths);
           currentResult=PyramidEngine.runSimulation(c,currentPaths);
           currentLadder=PyramidEngine.calculateLadderPlan(c);
-          optimizerCandidates=null;
+          optimizerCandidates=null; upsideOptimizerCandidates=null;
           renderMetrics(currentResult); renderChart(currentResult); renderLadder(currentLadder); renderSnapshot(c);
           $('optimizerWrap').className='blank';$('optimizerWrap').textContent='Optimizer has not run. It evaluates up to 27 parameter combinations using up to 250 common seeded paths.';
+          $('upsideOptimizerWrap').className='blank';$('upsideOptimizerWrap').textContent='Run the uptrend optimizer to compare add ladders and trailing exits while keeping the original entry, leverage and initial margin fixed.';
           $('leverageScanWrap').className='blank';$('leverageScanWrap').textContent='Run a leverage scan to compare leverage settings on the same seeded scenarios.';
           $('statusText').textContent=`Run complete · ${currentResult.metrics.paths.toLocaleString()} paths × ${c.steps} steps · ${c.hoursPerStep}h/step · seed ${c.seed}`;
           $('configStatus').innerHTML=`<strong>Cross-margin model</strong> · ${c.leverage}× leverage · ${c.correlation.toFixed(2)} correlation · funding ${pct(c.fundingPctPer8h,3)}/8h · shocks ${pct(c.shockProbabilityPctPerDay,2)}/day`;
@@ -809,6 +885,26 @@ function formatSnapshot(state, prices, inputConfig) {
           $('statusText').textContent=`Optimizer complete · ${optimizerCandidates.length} ranked candidates · sample size ${optimizerCandidates[0]?.paths||0}`;
           notify('Optimization candidates ranked. Validate the selected settings out of sample.');
         } catch(e) { $('optimizerWrap').className='blank';$('optimizerWrap').textContent=`Optimizer failed: ${e.message}`;notify('Optimizer failed. Review inputs.'); }
+      }
+      function runUpsideOptimizer() {
+        if(!currentConfig || !currentPaths) runSimulation();
+        if(!currentConfig || !currentPaths) return;
+        if(currentConfig.driftPct<=0) {
+          $('upsideOptimizerWrap').className='blank';
+          $('upsideOptimizerWrap').textContent='Set Mean return % / step above zero, then rerun the simulation. This mode tunes profit management for an assumed uptrend; it does not discover markets or entries.';
+          notify('Upside optimization requires a positive trend-return assumption.');
+          return;
+        }
+        try {
+          $('upsideOptimizerWrap').className='blank';$('upsideOptimizerWrap').textContent='Evaluating trend-rider candidates on common seeded paths; entry anchor, leverage and initial margin stay fixed…';
+          const result=PyramidEngine.optimizeUpsideConfig(currentConfig,currentPaths);
+          upsideOptimizerCandidates=result.candidates;
+          const b=result.baseline;
+          $('upsideOptimizerWrap').className='table-wrap';
+          $('upsideOptimizerWrap').innerHTML='<div class="help">Current settings on the same sample: median '+usd(b.medianFinal)+' · P10 '+usd(b.p10Final)+' · '+pct(b.outperformBuyHoldPct)+' of paths beat buy-and-hold · median/P90 drawdown '+pct(b.medianMaxDrawdownPct)+' / '+pct(b.p90MaxDrawdownPct)+' · '+b.paths+' paths. Ranking blends median return, P10 return and median outperformance, penalized for drawdown and liquidation. This is an in-sample heuristic, not a forecast.</div><table class="opt-table"><thead><tr><th>Rank</th><th>Add margin</th><th>Trigger rise</th><th>Max margin</th><th>Max adds / asset</th><th>Trail pullback</th><th>Arm after gain</th><th>Median final</th><th>P10 final</th><th>Beat hold</th><th>P90 drawdown</th><th>Liquidation</th><th>Apply</th></tr></thead><tbody>'+upsideOptimizerCandidates.map(o=>'<tr><td>'+o.rank+(o.rank===1?' · top score':'')+'</td><td>'+pct(o.config.addMarginPct,2)+'</td><td>'+pct(o.config.ladderStepPct,2)+'</td><td>'+pct(o.config.maxMarginUsePct,1)+'</td><td>'+o.config.maxAdds+'</td><td>'+pct(o.config.trailingStopPct,1)+'</td><td>'+pct(o.config.trailActivationPct,1)+'</td><td>'+usd(o.medianFinal)+'</td><td>'+usd(o.p10Final)+'</td><td>'+pct(o.outperformBuyHoldPct,1)+'</td><td>'+pct(o.p90MaxDrawdownPct,1)+'</td><td>'+pct(o.liquidationRatePct,2)+'</td><td><button data-apply-upside="'+(o.rank-1)+'">Apply + run</button></td></tr>').join('')+'</tbody></table><p class="help">Every candidate keeps leverage, initial-margin allocation and entry anchor fixed. Rider candidates switch off the hard stop and breakeven lock, so losses may deepen before the trailing stop arms. The liquidation safety gap and margin-utilization gates remain active.</p>';
+          $('statusText').textContent='Uptrend optimization complete · '+result.evaluatedCandidates+' candidates · '+result.paths+' common paths';
+          notify('Uptrend candidates ranked. Validate on different seeds and adverse trend paths before relying on them.');
+        } catch(e) { $('upsideOptimizerWrap').className='blank';$('upsideOptimizerWrap').textContent='Uptrend optimizer failed: '+e.message;notify('Uptrend optimization failed. Review inputs.'); }
       }
       function runLeverageScan() {
         if(!currentConfig || !currentPaths) runSimulation();
@@ -843,11 +939,13 @@ function formatSnapshot(state, prices, inputConfig) {
       $('optBtn').addEventListener('click',runOptimizer);
       $('optSectionBtn').addEventListener('click',runOptimizer);
       $('scanLeverageBtn').addEventListener('click',runLeverageScan);
+      $('upsideOptBtn').addEventListener('click',runUpsideOptimizer);
       $('csvBtn').addEventListener('click',exportCsv);
       $('jsonBtn').addEventListener('click',exportJson);
       $('resetBtn').addEventListener('click',resetDefaults);
       $('randomSeedBtn').addEventListener('click',()=>{const x=Math.floor(Math.random()*2147483647);setInput('seed',x);runSimulation();});
       $('optimizerWrap').addEventListener('click',(event)=>{const button=event.target.closest('[data-apply-candidate]');if(!button||!optimizerCandidates)return;const candidate=optimizerCandidates[Number(button.dataset.applyCandidate)];if(!candidate)return;for(const [k,v] of Object.entries(candidate.config))setInput(k,v);currentPaths=PyramidEngine.generatePricePaths(currentConfig,currentConfig.paths);runSimulation();notify(`Applied candidate #${candidate.rank}; results rerun using the selected settings.`);});
+      $('upsideOptimizerWrap').addEventListener('click',(event)=>{const button=event.target.closest('[data-apply-upside]');if(!button||!upsideOptimizerCandidates)return;const candidate=upsideOptimizerCandidates[Number(button.dataset.applyUpside)];if(!candidate)return;for(const [k,v] of Object.entries(candidate.config))setInput(k,v);currentPaths=null;runSimulation();notify('Applied trend-rider candidate #'+candidate.rank+'; first entry and leverage are unchanged.');});
       $('configForm').addEventListener('submit',e=>{e.preventDefault();runSimulation();});
       runSimulation();
     })();
