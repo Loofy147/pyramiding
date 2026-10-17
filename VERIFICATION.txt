@@ -1,15 +1,20 @@
-Pyramid Risk Lab v1.0.0 — verification record
+Pyramid Risk Lab v1.1.0 — verification record
 Date: 2026-10-17
-Runtime: Node.js v22.16.0
+Target runtime: Node.js 22
 
-RESULTS
-- npm test: 16 passed, 0 failed, 0 skipped.
-- npm run build:standalone: PASS; emitted standalone.html (63098 bytes).
-- Determinism check: rebuilt standalone output matched the tested artifact exactly.
-- UI smoke checks: modular engine linkage, essential controls, risk snapshot/chart markers, optimizer/export wiring and standalone script bundling.
-- GitHub Actions CI configured for push and pull_request, using Node.js 22.
+Coverage added on top of the v1.0 baseline:
+- Config normalization bounds for slippage, funding interval, and tail shock fields.
+- Exact slippage ledger check on constant price paths.
+- Funding accrual check: notional × rate × (hours / 8) × step count.
+- Seeded tail-shock determinism and forced common negative shocks.
+- Leverage scan comparison against direct simulations using the same path sample.
+- UI assertions for all prototype-derived controls and the leverage-scan action.
 
-LIMITATIONS
-- Native headless Chromium screenshot review was not available in the source environment; pixel-level visual review remains unverified.
-- Exchange-specific liquidation, partial liquidation, maintenance tiers, funding and execution slippage are approximated or omitted.
-- No live trading, exchange connection, API key, or deployment is included.
+Build consistency:
+- standalone.html is generated from index.html plus the engine.js inline bundle.
+- GitHub Actions runs npm test, rebuilds standalone.html, and rejects uncommitted build drift.
+
+Known limitations:
+- Pixel-level real-browser screenshot verification is not yet available.
+- Maintenance tiers, partial liquidation, liquidation penalties, changed fill prices and live market conditions are not modeled.
+- The three-asset prototype model was deferred rather than copying its isolated per-token liquidation logic.

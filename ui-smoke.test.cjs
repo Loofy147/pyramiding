@@ -25,3 +25,15 @@ test('UI exposes exports, optimizer, risk snapshot, and chart output', () => {
   assert.match(page, /riskSnapshot/);
   assert.match(page, /<svg/);
 });
+
+
+test('prototype-derived friction, funding, tail-shock controls and leverage scan are reachable', () => {
+  const source = fs.readFileSync('./index.html', 'utf8');
+  for (const id of ['slippagePct','fundingPctPer8h','hoursPerStep','shockProbabilityPctPerDay','shockMeanPct','shockVolPct']) {
+    assert.ok(source.includes('id="' + id + '"'), 'missing input ' + id);
+  }
+  assert.match(source, /id="scanLeverageBtn"/);
+  assert.match(source, /id="meanFunding"/);
+  assert.match(source, /id="meanExecutionCosts"/);
+  assert.match(source, /scanLeverage/);
+});

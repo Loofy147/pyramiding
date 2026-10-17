@@ -109,3 +109,61 @@ test('optimizer returns deterministic ranked candidates', () => {
   assert.ok(a.length > 0);
   assert.ok(a.every((item, i) => item.rank === i + 1));
 });
+
+
+test('execution-cost and funding inputs normalize within explicit bounds', () => {
+  const c = E.normalizeConfig({ slippagePct: 0.03, fundingPctPer8h: 0.01, hoursPerStep: 24, shockProbabilityPctPerDay: 0.5, shockMeanPct: -8, shockVolPct: 3 });
+  assert.equal(c.slippagePct, 0.03);
+  assert.equal(c.fundingPctPer8h, 0.01);
+  assert.equal(c.hoursPerStep, 24);
+  assert.equal(c.shockProbabilityPctPerDay, 0.5);
+  const bounded = E.normalizeConfig({ hoursPerStep: 999, shockProbabilityPctPerDay: 999, shockMeanPct: -999, shockVolPct: -1 });
+  assert.equal(bounded.hoursPerStep, 168);
+  assert.equal(bounded.shockProbabilityPctPerDay, 100);
+  assert.equal(bounded.shockMeanPct, -50);
+  assert.equal(bounded.shockVolPct, 0);
+});
+
+test('per-side slippage reduces terminal equity by entry and exit notional costs', () => {
+  const c = { ...base, steps: 4, leverage: 3, initialMarginPct: 3, addMarginPct: 0, hardStopPct: 0, trailActivationPct: 500, breakevenActivationPct: 500, feePct: 0, slippagePct: 0.1, fundingPctPer8h: 0, shockProbabilityPctPerDay: 0 };
+  const path = { a: Array(c.steps + 1).fill(c.startingPriceA), b: Array(c.steps + 1).fill(c.startingPriceB) };
+  const state = E.createInitialState(c);
+  const openingNotional = state.positions.reduce((sum, p, i) => sum + p.qty * [c.startingPriceA, c.startingPriceB][i], 0);
+  const r = E.simulateOne(c, path);
+  assert.ok(Math.abs(r.executionCosts - openingNotional * 0.001 * 2) < 1e-6);
+  assert.ok(Math.abs((c.capital - r.finalEquity) - r.executionCosts) < 1e-6);
+});
+
+test('funding accrues from open notional over configured step hours and is summarized', () => {
+  const c = { ...base, steps: 4, leverage: 3, initialMarginPct: 3, addMarginPct: 0, hardStopPct: 0, trailActivationPct: 500, breakevenActivationPct: 500, feePct: 0, slippagePct: 0, fundingPctPer8h: 0.01, hoursPerStep: 24, shockProbabilityPctPerDay: 0 };
+  const path = { a: Array(c.steps + 1).fill(c.startingPriceA), b: Array(c.steps + 1).fill(c.startingPriceB) };
+  const state = E.createInitialState(c);
+  const notional = state.positions.reduce((sum, p, i) => sum + p.qty * [c.startingPriceA, c.startingPriceB][i], 0);
+  const result = E.simulateOne(c, path);
+  const expected = notional * 0.0001 * (c.hoursPerStep / 8) * c.steps;
+  assert.ok(Math.abs(result.fundingPaid - expected) < 1e-6);
+  assert.ok(Math.abs(result.finalEquity - (c.capital - expected)) < 1e-6);
+  const summary = E.runSimulation(c, [path]);
+  assert.ok(Math.abs(summary.metrics.meanFundingPaid - expected) < 1e-6);
+});
+
+test('tail shocks are seeded and a 100% daily switch applies common negative jumps', () => {
+  const c = { ...base, steps: 5, hoursPerStep: 24, volPct: 0, driftPct: 0, shockProbabilityPctPerDay: 100, shockMeanPct: -11, shockVolPct: 0 };
+  const a = E.generatePricePaths(c, 2);
+  assert.deepEqual(a, E.generatePricePaths(c, 2));
+  assert.ok(a[0].a[5] < c.startingPriceA * Math.exp(-0.5));
+  assert.ok(a[0].b[5] < c.startingPriceB * Math.exp(-0.5));
+});
+
+test('leverage scan compares candidates on the same supplied path sample', () => {
+  const c = { ...base, steps: 10, paths: 20 };
+  const paths = E.generatePricePaths(c, 20);
+  const scan = E.scanLeverage(c, paths, [2, 3, 5]);
+  assert.deepEqual(scan.map(r => r.leverage), [2, 3, 5]);
+  for (const row of scan) {
+    const reference = E.runSimulation({ ...c, leverage: row.leverage }, paths);
+    assert.equal(row.medianFinal, reference.metrics.medianFinal);
+    assert.equal(row.liquidationRatePct, reference.metrics.liquidationRatePct);
+    assert.equal(row.paths, paths.length);
+  }
+});

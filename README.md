@@ -1,26 +1,47 @@
-# Pyramid Risk Lab
+# Pyramid Risk Lab v1.1.0
 
-A local-first, dependency-free browser simulator for researching leveraged crypto pyramiding under a simplified shared cross-margin account. It is a risk-analysis sandbox, not a trading bot, exchange connector, live quote feed, or investment recommendation.
+A local-first browser simulator for researching long-only leveraged crypto pyramiding in a simplified shared cross-margin account. It is an analytical sandbox, not an exchange connector, bot, live quote feed, or investment recommendation.
 
-## Start
+## Run locally
 
-- Open **standalone.html** in a modern browser for the one-file version. It needs no install, API key, or network request.
-- For editable source, open **index.html** with **engine.js** beside it.
-- Run automated checks with Node.js 22 or a compatible modern version: **npm test**.
-- Rebuild the single-file version with **npm run build:standalone**.
+- Open `standalone.html` in a modern browser. No install, API keys, or network calls are required.
+- For editable source, keep `index.html` and `engine.js` together.
+- Run `npm test` with Node.js 22+.
+- Rebuild the one-file app with `npm run build:standalone`.
+- **Scan leverage** evaluates leverage candidates against the same seeded paths.
+- **Find safer settings** ranks parameter candidates using the same seeded sample.
 
 ## Included
 
-- Seeded correlated synthetic paths for two assets sharing account equity.
-- Long-only linear positions, weighted-average entries, maintenance margin, estimated trading fees, and a conditional liquidation calculation.
-- Pyramid additions gated by a measured liquidation-safety gap and maximum initial-margin utilization.
-- Deterministic ladder calculations, hard stops, equity trailing stops, and breakeven locks.
-- Equity and drawdown tracking, conservative liquidation/ruin classification, terminal percentile bands, and a same-capital spot buy-and-hold baseline.
-- A seeded parameter-grid optimizer, SVG chart, exit breakdown, CSV curve export, and JSON run export.
-- Automated regression tests and a GitHub Actions workflow.
+- Seeded correlated synthetic paths for two long-only assets and shared account equity.
+- Per-side fees and slippage costs on entries, adds, and modeled exits.
+- Configurable funding per eight hours, scaled by hours per step and average pre/post-step notional. Negative rates credit the account.
+- Optional reproducible common tail shocks, disabled by default.
+- Pyramid additions constrained by a liquidation safety-gap gate and initial-margin utilization limit.
+- Hard stops, equity trailing stops, breakeven locks, deterministic ladder math, conditional liquidation estimates, and retrace metrics.
+- Per-step equity/drawdown/ruin tracking, P10/P50/P90 bands, a same-capital spot buy-and-hold baseline, strategy optimizer and leverage scan.
+- Responsive local UI, SVG chart, exit breakdown, CSV/JSON export, regression tests, and GitHub Actions CI.
 
-## Model boundaries
+## Core approximations
 
-Price paths are synthetic and reproducible, not market forecasts. The liquidation estimate assumes fixed marks for the other asset and a constant maintenance-margin rate. Exchange-specific maintenance tiers, funding, basis, slippage, partial liquidation, and execution details are not fully modeled. Verify venue rules before using exchange-specific numbers. Never treat a simulated safety buffer as a guarantee against liquidation.
+For asset i: quantity qᵢ, mark Pᵢ, average entry Eᵢ; maintenance rate m; execution cost rate c = fee + slippage; wallet cash C; target gap b:
 
-Historical prototypes are retained as **Pyramid Lab (1).html**, **Pyramid Lab (2).html**, and **Pyramid Lab.md**. The v1.0.0 implementation starts at **index.html**.
+```text
+Equity = C + Σ qᵢ(Pᵢ − Eᵢ)
+Maintenance = Σ m qᵢ Pᵢ
+D = Σ qᵢ Pᵢ(1 − m)
+H = Equity − Maintenance
+N_safe = max(0, (H − bD) / (m + c + b(1 − m)))
+```
+
+Add notional is limited by both the safety-gap constraint and available initial-margin capacity. The conditional liquidation price solves Equity = Maintenance for one asset while holding the other asset's mark fixed. It is not the same as an account-wide liquidation trigger.
+
+The path model uses correlated log returns. Drift/volatility apply per configured step. Hours-per-step scales funding carry and converts the daily shock probability into per-step probability. A shock adds a common log-return jump to both assets. These parameters are stress assumptions, not calibrated market forecasts.
+
+## Known limits
+
+Maintenance margin is a flat rate. Exchange risk tiers, partial liquidation, liquidation fees, order-book fill-price impact, outages, shorts/hedges and live data are not modeled. Slippage is an additive cost, not a changed fill price. Funding is constant within a run and estimated from average pre/post-step notional. Liquidation is conservatively modeled as a full loss of remaining equity after the maintenance threshold is crossed.
+
+The previous prototypes **Pyramid Lab (1).html**, **Pyramid Lab (2).html**, and **Pyramid Lab.md** are preserved for historical comparison. Their funding/slippage inputs, common-jump concept and leverage scan informed v1.1. Their isolated per-token liquidation accounting was not copied because it does not represent a shared cross-margin wallet.
+
+Three independently configured assets and the older volatility-scaled per-token trailing rule are deferred. They require explicit account-wide math and dedicated regression tests rather than adding controls around the two-asset engine.
