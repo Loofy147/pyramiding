@@ -538,7 +538,6 @@
     const paths = available.slice(0, Math.min(available.length, 100));
     const adds = uniqueVals([0, base.addMarginPct, Math.min(10, Math.max(2, base.addMarginPct * 2))]);
     const steps = uniqueVals([Math.max(0.25, base.ladderStepPct - 1), base.ladderStepPct, Math.min(25, base.ladderStepPct + 1)]);
-    const marginUses = uniqueVals([base.maxMarginUsePct, Math.min(85, base.maxMarginUsePct + 10), Math.min(90, base.maxMarginUsePct + 20)]);
     const addCounts = uniqueVals([base.maxAdds, Math.max(12, base.maxAdds)]);
     const trails = uniqueVals([Math.max(5, base.trailingStopPct), Math.min(40, Math.max(base.trailingStopPct + 10, 18)), Math.min(50, Math.max(base.trailingStopPct + 20, 30))]);
     const trailArms = uniqueVals([base.trailActivationPct, Math.min(75, Math.max(25, base.trailActivationPct + 20))]);
@@ -555,12 +554,12 @@
       liquidationRatePct: bm.liquidationRatePct, paths: bm.paths
     };
     const candidates = [];
-    for (const add of adds) for (const step of steps) for (const marginUse of marginUses)
+    for (const add of adds) for (const step of steps)
       for (const maxAdds of addCounts) for (const trail of trails) for (const arm of trailArms) {
         // Keep the original ticket's leverage and initial-margin allocation fixed.
         // Rider candidates deliberately disable early hard-stop/BE exits to test profit capture.
         const candidate = normalizeConfig({
-          ...base, addMarginPct: add, ladderStepPct: step, maxMarginUsePct: marginUse,
+          ...base, addMarginPct: add, ladderStepPct: step, maxMarginUsePct: base.maxMarginUsePct,
           maxAdds, trailingStopPct: trail, trailActivationPct: arm,
           hardStopPct: 0, breakevenActivationPct: 500, breakevenLockPct: 0
         });

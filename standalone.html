@@ -129,7 +129,7 @@
         <section class="panel section">
           <div class="section-title"><div><h2>Optimization candidates</h2><p>Small grid search over ladder interval, add size and safety buffer. Ranked by a transparent risk-adjusted score using the same sample paths; results are in-sample and require out-of-sample validation.</p></div><button id="optSectionBtn" class="btn">Run optimizer</button></div>
           <div id="optimizerWrap" class="blank">Optimizer has not run. It evaluates up to 27 parameter combinations using up to 250 common seeded paths.</div>
-          <div class="section-title" style="margin-top:18px"><div><h3>Optimize uptrend profit extraction</h3><p>For an existing ticket, not entry discovery. It keeps the entry anchors, leverage and initial-margin allocation fixed, then tests addition size/spacing, margin capacity and trailing exits. Rider candidates disable the early hard stop and breakeven lock; inspect P10 outcomes and drawdown tails before applying.</p></div><button id="upsideOptBtn" class="btn">Optimize trend rider</button></div>
+          <div class="section-title" style="margin-top:18px"><div><h3>Optimize uptrend profit extraction</h3><p>For an existing ticket, not entry discovery. It keeps the entry anchors, leverage and initial-margin allocation fixed, then tests addition size/spacing and trailing exits while keeping the margin cap fixed. Rider candidates disable the early hard stop and breakeven lock; inspect P10 outcomes and drawdown tails before applying.</p></div><button id="upsideOptBtn" class="btn">Optimize trend rider</button></div>
           <div id="upsideOptimizerWrap" class="blank">Run the uptrend optimizer to compare add ladders and trailing exits while keeping the original entry, leverage and initial margin fixed.</div>
           <div class="section-title" style="margin-top:18px"><div><h3>Leverage sensitivity scan</h3><p>Compares leverage candidates on the same price paths. Higher mean return is not automatically safer.</p></div><button id="scanLeverageBtn" class="btn">Scan leverage</button></div>
           <div id="leverageScanWrap" class="blank">Run a leverage scan to compare leverage settings on the same seeded scenarios.</div>
@@ -689,7 +689,6 @@
     const paths = available.slice(0, Math.min(available.length, 100));
     const adds = uniqueVals([0, base.addMarginPct, Math.min(10, Math.max(2, base.addMarginPct * 2))]);
     const steps = uniqueVals([Math.max(0.25, base.ladderStepPct - 1), base.ladderStepPct, Math.min(25, base.ladderStepPct + 1)]);
-    const marginUses = uniqueVals([base.maxMarginUsePct, Math.min(85, base.maxMarginUsePct + 10), Math.min(90, base.maxMarginUsePct + 20)]);
     const addCounts = uniqueVals([base.maxAdds, Math.max(12, base.maxAdds)]);
     const trails = uniqueVals([Math.max(5, base.trailingStopPct), Math.min(40, Math.max(base.trailingStopPct + 10, 18)), Math.min(50, Math.max(base.trailingStopPct + 20, 30))]);
     const trailArms = uniqueVals([base.trailActivationPct, Math.min(75, Math.max(25, base.trailActivationPct + 20))]);
@@ -706,12 +705,12 @@
       liquidationRatePct: bm.liquidationRatePct, paths: bm.paths
     };
     const candidates = [];
-    for (const add of adds) for (const step of steps) for (const marginUse of marginUses)
+    for (const add of adds) for (const step of steps)
       for (const maxAdds of addCounts) for (const trail of trails) for (const arm of trailArms) {
         // Keep the original ticket's leverage and initial-margin allocation fixed.
         // Rider candidates deliberately disable early hard-stop/BE exits to test profit capture.
         const candidate = normalizeConfig({
-          ...base, addMarginPct: add, ladderStepPct: step, maxMarginUsePct: marginUse,
+          ...base, addMarginPct: add, ladderStepPct: step, maxMarginUsePct: base.maxMarginUsePct,
           maxAdds, trailingStopPct: trail, trailActivationPct: arm,
           hardStopPct: 0, breakevenActivationPct: 500, breakevenLockPct: 0
         });
@@ -901,7 +900,7 @@ function formatSnapshot(state, prices, inputConfig) {
           upsideOptimizerCandidates=result.candidates;
           const b=result.baseline;
           $('upsideOptimizerWrap').className='table-wrap';
-          $('upsideOptimizerWrap').innerHTML='<div class="help">Current settings on the same sample: median '+usd(b.medianFinal)+' · P10 '+usd(b.p10Final)+' · '+pct(b.outperformBuyHoldPct)+' of paths beat buy-and-hold · median/P90 drawdown '+pct(b.medianMaxDrawdownPct)+' / '+pct(b.p90MaxDrawdownPct)+' · '+b.paths+' paths. Ranking blends median return, P10 return and median outperformance, penalized for drawdown and liquidation. This is an in-sample heuristic, not a forecast.</div><table class="opt-table"><thead><tr><th>Rank</th><th>Add margin</th><th>Trigger rise</th><th>Max margin</th><th>Max adds / asset</th><th>Trail pullback</th><th>Arm after gain</th><th>Median final</th><th>P10 final</th><th>Beat hold</th><th>P90 drawdown</th><th>Liquidation</th><th>Apply</th></tr></thead><tbody>'+upsideOptimizerCandidates.map(o=>'<tr><td>'+o.rank+(o.rank===1?' · top score':'')+'</td><td>'+pct(o.config.addMarginPct,2)+'</td><td>'+pct(o.config.ladderStepPct,2)+'</td><td>'+pct(o.config.maxMarginUsePct,1)+'</td><td>'+o.config.maxAdds+'</td><td>'+pct(o.config.trailingStopPct,1)+'</td><td>'+pct(o.config.trailActivationPct,1)+'</td><td>'+usd(o.medianFinal)+'</td><td>'+usd(o.p10Final)+'</td><td>'+pct(o.outperformBuyHoldPct,1)+'</td><td>'+pct(o.p90MaxDrawdownPct,1)+'</td><td>'+pct(o.liquidationRatePct,2)+'</td><td><button data-apply-upside="'+(o.rank-1)+'">Apply + run</button></td></tr>').join('')+'</tbody></table><p class="help">Every candidate keeps leverage, initial-margin allocation and entry anchor fixed. Rider candidates switch off the hard stop and breakeven lock, so losses may deepen before the trailing stop arms. The liquidation safety gap and margin-utilization gates remain active.</p>';
+          $('upsideOptimizerWrap').innerHTML='<div class="help">Current settings on the same sample: median '+usd(b.medianFinal)+' · P10 '+usd(b.p10Final)+' · '+pct(b.outperformBuyHoldPct)+' of paths beat buy-and-hold · median/P90 drawdown '+pct(b.medianMaxDrawdownPct)+' / '+pct(b.p90MaxDrawdownPct)+' · '+b.paths+' paths. Ranking blends median return, P10 return and median outperformance, penalized for drawdown and liquidation. This is an in-sample heuristic, not a forecast.</div><table class="opt-table"><thead><tr><th>Rank</th><th>Add margin</th><th>Trigger rise</th><th>Fixed margin cap</th><th>Max adds / asset</th><th>Trail pullback</th><th>Arm after gain</th><th>Median final</th><th>P10 final</th><th>Beat hold</th><th>P90 drawdown</th><th>Liquidation</th><th>Apply</th></tr></thead><tbody>'+upsideOptimizerCandidates.map(o=>'<tr><td>'+o.rank+(o.rank===1?' · top score':'')+'</td><td>'+pct(o.config.addMarginPct,2)+'</td><td>'+pct(o.config.ladderStepPct,2)+'</td><td>'+pct(o.config.maxMarginUsePct,1)+'</td><td>'+o.config.maxAdds+'</td><td>'+pct(o.config.trailingStopPct,1)+'</td><td>'+pct(o.config.trailActivationPct,1)+'</td><td>'+usd(o.medianFinal)+'</td><td>'+usd(o.p10Final)+'</td><td>'+pct(o.outperformBuyHoldPct,1)+'</td><td>'+pct(o.p90MaxDrawdownPct,1)+'</td><td>'+pct(o.liquidationRatePct,2)+'</td><td><button data-apply-upside="'+(o.rank-1)+'">Apply + run</button></td></tr>').join('')+'</tbody></table><p class="help">Every candidate keeps leverage, initial-margin allocation and entry anchor fixed. Rider candidates switch off the hard stop and breakeven lock, so losses may deepen before the trailing stop arms. The liquidation safety gap and margin-utilization gates remain active.</p>';
           $('statusText').textContent='Uptrend optimization complete · '+result.evaluatedCandidates+' candidates · '+result.paths+' common paths';
           notify('Uptrend candidates ranked. Validate on different seeds and adverse trend paths before relying on them.');
         } catch(e) { $('upsideOptimizerWrap').className='blank';$('upsideOptimizerWrap').textContent='Uptrend optimizer failed: '+e.message;notify('Uptrend optimization failed. Review inputs.'); }
