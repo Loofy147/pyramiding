@@ -1,0 +1,123 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Pyramid Lab</title>
+<style>
+:root{--bg:#f3f5f8;--cd:#fff;--tx:#0f1722;--mu:#667085;--bd:#e3e7ee;--ac:#0e9f6e;--ac2:#f5a524;--bad:#e5484d;--sh:0 1px 2px #0001,0 8px 24px #0f172214;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0f15;--cd:#131a23;--tx:#eaeef5;--mu:#8b97a8;--bd:#222c39;--ac:#34d399;--ac2:#fbbf24;--bad:#ff6369;--sh:0 8px 28px #0006;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b0f15;--cd:#131a23;--tx:#eaeef5;--mu:#8b97a8;--bd:#222c39;--ac:#34d399;--ac2:#fbbf24;--bad:#ff6369;--sh:0 8px 28px #0006;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd)}
+.hi{max-width:960px;margin:auto;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between}
+.logo{font-weight:800;letter-spacing:-.02em;font-size:18px}.logo b{color:var(--ac)}
+nav{display:flex;background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:3px;gap:2px}
+nav button{background:none;color:var(--mu);border:0;border-radius:9px;padding:8px 16px;font:600 14px inherit;font-family:inherit;cursor:pointer}
+nav button.on{background:var(--ac);color:#04130d}
+main{max-width:960px;margin:auto;padding:14px}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:16px;padding:16px;box-shadow:var(--sh);margin-bottom:14px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;color:var(--mu)}
+input{background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font:600 16px inherit;font-family:inherit;width:100%;outline:none}
+input:focus{border-color:var(--ac)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.chip{background:var(--bg);border:1px solid var(--bd);color:var(--tx);border-radius:99px;padding:6px 13px;font:600 13px inherit;font-family:inherit;cursor:pointer}
+.chip.on{background:var(--ac2);color:#1a1200;border-color:var(--ac2)}.chips span{font-size:12px;color:var(--mu);font-weight:600;margin-right:4px}
+.go{width:100%;margin-top:14px;background:linear-gradient(135deg,var(--ac),#0b7f57);color:#03110b;border:0;border-radius:12px;padding:14px;font:800 16px inherit;font-family:inherit;cursor:pointer}
+.go:disabled{opacity:.6}.sec{background:var(--bg);border:1px solid var(--bd);color:var(--tx);margin-top:8px}
+details{margin-top:12px}summary{cursor:pointer;color:var(--mu);font-size:13px;font-weight:600}details .row{margin-top:10px}
+.kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.k{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:12px 14px;box-shadow:var(--sh)}
+.k small{color:var(--mu);font-size:12px;font-weight:600}.k b{display:block;font-size:26px;letter-spacing:-.02em}.k i{font-style:normal;font-size:12px;color:var(--mu)}
+.g{color:var(--ac)}.r{color:var(--bad)}.y{color:var(--ac2)}
+.note{padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ac2) 14%,transparent);border:1px solid color-mix(in srgb,var(--ac2) 40%,transparent);font-size:14px;margin-bottom:14px}
+canvas{width:100%;height:260px;display:block}.w{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:right}th{color:var(--mu);font-weight:600;font-size:12px}td:first-child,th:first-child{text-align:left}
+.bar{height:9px;border-radius:5px;background:var(--bd);min-width:90px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac);border-radius:5px}.bar.m i{background:var(--ac2)}
+h3{margin:0 0 4px;font-size:15px}.dot{width:14px;height:14px;border-radius:50%;background:currentColor;display:inline-block}.ex{margin:0;padding-left:18px;font-size:14px}.ex li{margin:6px 0}.mu{color:var(--mu);font-size:13px}
+textarea{width:100%;height:80px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:10px;font:11px monospace;margin-top:8px}
+</style></head><body>
+<header><div class="hi"><div class="logo">Pyramid<b>Lab</b></div><nav id="nv"><button data-t="sim" class="on">Simulate</button><button data-t="lad">Ladder</button><button data-t="scan">Leverage scan</button></nav></div></header>
+<main>
+<div class="card">
+<div class="row">
+<label>Capital<input id="cap" type="number" value="1000" inputmode="decimal"></label>
+<label>Leverage ×<input id="L" type="number" value="50" inputmode="decimal"></label>
+<label>Margin per token %<input id="bul" type="number" value="10" inputmode="decimal"></label>
+<label>Add every +ROE %<input id="trig" type="number" value="50" inputmode="decimal"></label>
+<label>Reinvest % of float PnL<input id="f" type="number" value="60" inputmode="decimal"></label></div>
+<div class="chips"><span>Leverage</span><button class="chip" data-l="4">×4</button><button class="chip" data-l="10">×10</button><button class="chip" data-l="25">×25</button><button class="chip on" data-l="50">×50</button><button class="chip" data-l="100">×100</button></div>
+<div class="chips"><span>Market</span><button class="chip on" data-m="0">Chop</button><button class="chip" data-m="300">Uptrend</button><button class="chip" data-m="-300">Downtrend</button></div>
+<details><summary>Advanced (defaults are fine)</summary><div class="row">
+<label>Token 1 vol %<input id="v0" type="number" value="130"></label><label>Token 2 vol %<input id="v1" type="number" value="150"></label><label>Token 3 vol %<input id="v2" type="number" value="110"></label>
+<label>Max adds<input id="maxAdds" type="number" value="8"></label><label>Stop, % of liq distance<input id="stopF" type="number" value="60"></label><label>Give back of open gain %<input id="give" type="number" value="40"></label>
+<label>Fee %<input id="fee" type="number" value="0.06" step="any"></label><label>Funding % per 8h<input id="fund" type="number" value="0.01" step="any"></label><label>Slippage %<input id="slip" type="number" value="0.15" step="any"></label><label>Maint. margin %<input id="mmr" type="number" value="0.5" step="any"></label>
+<label>Correlation 0-1<input id="rho" type="number" value="0.6" step="any"></label><label>Days<input id="days" type="number" value="30"></label><label>Paths<input id="paths" type="number" value="150"></label></div></details>
+<button class="go" id="go">Run simulation</button></div>
+
+<section id="sim"><div class="note" id="vd"></div><div class="kp" id="kp"></div><div class="card" id="why"></div><div class="card"><h3>Equity fan (× starting capital)</h3><div class="mu">Band = 10th to 90th percentile, line = median, grey = break-even.</div><canvas id="cv"></canvas></div></section>
+<section id="lad" hidden><div class="card"><h3>Pyramid ladder, one token</h3><div class="mu">Price starts at 1.00 and rises by exactly the trigger each step. Last column = equity multiple if price then falls back to 1.00.</div><div class="w" id="lo"></div></div></section>
+<section id="scan" hidden><div class="card"><h3>Which leverage pays best?</h3><div class="mu">Same price paths and same rules at each leverage. Bars show mean and median outcome per 1.00 of capital.</div><div class="w" id="so"></div><div id="sw"></div><button class="go sec" id="tn">Tune pyramid rules at this leverage</button><div class="w" id="to"></div></div></section>
+<div class="card"><h3>Reality check (from research)</h3><ul class="ex"><li><b>Funding</b> is charged on your full notional, usually every 8 hours (hourly on Hyperliquid). The usual base is 0.01% per 8h, about 11% a year. At ×50 that is about 0.5% of your margin every 8h, even when price moves your way.</li><li><b>Maintenance margin</b> is tiered: bigger positions face a higher rate, so large notional liquidates sooner than a flat rate shows. Check your exchange table.</li><li>A 2026 on-chain study of Hyperliquid found manual, mostly retail traders lost about $1.1B, mainly through execution costs, forced liquidations and fees. Liquidations exit at far worse prices than chosen exits.</li><li>In extreme moves, exchanges can auto-deleverage winning positions, which can cut a pyramid short. This model does not simulate that.</li></ul></div><div class="card"><details><summary>Results log (copy and paste back for tuning)</summary><button class="chip" id="cp" style="margin-top:8px">Copy JSON</button><textarea id="ex" readonly></textarea></details></div>
+</main>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];let tab="sim",mk=0,OPT=[];const LOG=[];
+const N=["cap","L","bul","trig","f","maxAdds","stopF","give","fee","slip","fund","mmr","rho","days","paths"];
+function rd(){const q={seed:7};N.forEach(k=>q[k]=+$("#"+k).value);q.stopF/=100;q.T=[0,1,2].map(i=>({v:+$("#v"+i).value}));q.drift=mk;return q}
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const nrm=r=>Math.sqrt(-2*Math.log(r()||1e-12))*Math.cos(6.2831853*r());
+function gen(q){const r=rng(q.seed),S=q.days*24,sh=q.T.map(t=>t.v/100/Math.sqrt(8760)),mu=q.drift/100/8760,rc=Math.sqrt(Math.min(1,Math.max(0,q.rho))),ri=Math.sqrt(1-rc*rc),X=[];
+for(let i=0;i<q.paths;i++){const a=[0,1,2].map(()=>{const x=new Float64Array(S+1);x[0]=1;return x});
+for(let s=1;s<=S;s++){const zc=nrm(r);for(let k=0;k<3;k++){let t=mu-sh[k]*sh[k]/2+sh[k]*(rc*zc+ri*nrm(r));if(r()<.004)t+=-.01+.06*nrm(r);a[k][s]=a[k][s-1]*Math.exp(t)}}X.push(a)}return X}
+function run(a,q,rec){const S=a[0].length-1,L=q.L,fe=(q.fee+q.slip)/100,mm=q.mmr/100,f=q.f/100,ld=Math.max(0,1/L-mm),A=q.cap*q.bul/100,R=q.cap-3*A,fr=q.fund/100/8;
+const w=[0,0,0],qy=[0,0,0],co=[0,0,0],ls=[1,1,1],pk=[1,1,1],dp=[0,0,0],ad=[0,0,0],al=[1,1,1],wk=q.T.map(t=>.35*t.v/100/Math.sqrt(8760));let na=0,lq=0,e=0;
+const ser=rec?new Float32Array((S/6|0)+1):null;
+for(let k=0;k<3;k++){const n=A*L;qy[k]=n;co[k]=n;w[k]=A-n*fe}
+for(let s=0;s<=S;s++){e=R;
+for(let k=0;k<3;k++){if(al[k]){const px=a[k][s];if(s)w[k]-=qy[k]*px*fr;const lo=s?Math.min(px,a[k][s-1])*(1-wk[k]):px,pl=(co[k]-w[k])/(qy[k]*(1-mm)),av=co[k]/qy[k];
+if(lo<=pl){w[k]=0;al[k]=0;lq++}else{if(px>pk[k])pk[k]=px;let st=av*(1-q.stopF*ld);if(ad[k])st=Math.max(st,av*(1+2*fe),av+(pk[k]-av)*(1-q.give/100));
+if(lo<=st){w[k]+=qy[k]*st*(1-fe)-co[k];al[k]=0}
+else if(ad[k]<q.maxAdds&&px>=ls[k]*(1+q.trig/100/L)){const u=qy[k]*px-co[k],sp=f*Math.max(0,u-dp[k]),eq=w[k]+u,an=Math.min(sp*L,(eq-qy[k]*px/L)*L);
+if(u>0&&an>0){qy[k]+=an/px;co[k]+=an;w[k]-=an*fe;dp[k]+=an/L;ad[k]++;ls[k]=px;na++}}}}
+e+=al[k]?w[k]+qy[k]*a[k][s]-co[k]:w[k]}
+if(ser&&s%6==0)ser[s/6]=e/q.cap}
+for(let k=0;k<3;k++)if(al[k])e-=qy[k]*a[k][S]*fe;return{m:e/q.cap,lq,na,ser}}
+const pc=(a,p)=>a[Math.min(a.length-1,Math.floor(p*a.length))];
+function agg(X,q,rec){const R=X.map(a=>run(a,q,rec)),m=R.map(r=>r.m).sort((x,y)=>x-y),n=R.length;
+return{R,mean:m.reduce((s,v)=>s+v,0)/n,p10:pc(m,.1),p50:pc(m,.5),p90:pc(m,.9),l50:m.filter(v=>v<.5).length/n,lqr:R.reduce((s,r)=>s+r.lq,0)/(3*n),na:R.reduce((s,r)=>s+r.na,0)/n}}
+const x2=v=>v.toFixed(2)+"×",pp=v=>(v*100).toFixed(0)+"%",cl=v=>v>=1?"g":v>=.7?"y":"r";
+const pause=()=>new Promise(r=>setTimeout(r,15));
+function draw(R){const c=$("#cv"),W=c.width=c.clientWidth*2,H=c.height=520,x=c.getContext("2d"),cs=getComputedStyle(document.documentElement),n=R[0].ser.length,
+B=[.1,.5,.9].map(p=>Array.from({length:n},(_,i)=>pc(R.map(r=>r.ser[i]).sort((a,b)=>a-b),p))),mx=Math.max(1.6,...B[2])*1.06,X=i=>i/(n-1)*W,Y=v=>H-8-v/mx*(H-16),ac=cs.getPropertyValue("--ac").trim();
+x.clearRect(0,0,W,H);x.strokeStyle=cs.getPropertyValue("--mu");x.globalAlpha=.5;x.setLineDash([10,8]);x.lineWidth=2;x.beginPath();x.moveTo(0,Y(1));x.lineTo(W,Y(1));x.stroke();x.setLineDash([]);x.globalAlpha=1;
+x.fillStyle=ac+"30";x.beginPath();B[2].forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(0,Y(v)));for(let i=n-1;i>=0;i--)x.lineTo(X(i),Y(B[0][i]));x.fill();
+x.strokeStyle=ac;x.lineWidth=5;x.lineJoin="round";x.beginPath();B[1].forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(0,Y(v)));x.stroke()}
+function kpi(l,v,c,s){return`<div class="k"><small>${l}</small><b class="${c||""}">${v}</b><i>${s||"&nbsp;"}</i></div>`}
+function explain(A,S,q){const rt=2*q.L*(q.fee+q.slip),fd=q.L*q.fund*3,ld=Math.max(0,1/q.L-q.mmr/100)*100,d=A.mean-S.mean,sc=A.p50>=1.05&&A.l50<.25?"g":A.mean>=1&&A.l50<.45?"y":"r",hd={g:"Looks workable",y:"Risky: depends on a few big winners",r:"Not working at these settings"}[sc],nx={g:"Before trusting it, switch Market to Downtrend, change the seed, and test on real candles.",y:"Treat each bullet as money you accept losing. Try Leverage scan, then Tune.",r:"Try a lower leverage in Leverage scan, a smaller margin per token, or a wider add trigger."}[sc];$("#why").innerHTML=`<h3>In plain words</h3><div style="display:flex;gap:10px;align-items:center;margin:8px 0"><span class="dot ${sc}"></span><b class="${sc}" style="font-size:18px">${hd}</b></div><ul class="ex"><li><b>What happens:</b> in 100 runs, half end below ${x2(A.p50)}; ${(A.l50*100).toFixed(0)} lose over half the capital; the luckiest 10 reach ${x2(A.p90)} or more. 1.00× is break-even.</li><li><b>Why:</b> a drop of only ${ld.toFixed(1)}% liquidates a fresh ×${q.L} position, and ${pp(A.lqr)} of tokens were liquidated. Costs take ${rt.toFixed(0)}% of margin per round trip, plus ${fd.toFixed(1)}% per day in funding.</li><li><b>Pyramiding:</b> ${Math.abs(d)<.05?"changed the average very little":d>0?"raised the average by "+d.toFixed(2)+"×":"lowered the average by "+Math.abs(d).toFixed(2)+"×"} compared with never adding.</li><li><b>Average vs typical:</b> the mean (${x2(A.mean)}) is pulled up by rare big winners. The median is the run to expect.</li><li><b>Next:</b> ${nx}</li></ul>`}
+async function sim(){const q=rd();$("#go").disabled=1;$("#go").textContent="Running…";await pause();const X=gen(q),A=agg(X,q,true),S=agg(X,{...q,f:0},false),rt=2*q.L*(q.fee+q.slip);
+draw(A.R);$("#kp").innerHTML=kpi("Median outcome",x2(A.p50),cl(A.p50),"static "+x2(S.p50))+kpi("Mean outcome",x2(A.mean),cl(A.mean),"static "+x2(S.mean))+kpi("Top 10% reach",x2(A.p90),"g","static "+x2(S.p90))+kpi("End below 0.5×",pp(A.l50),A.l50>.4?"r":A.l50>.2?"y":"g","static "+pp(S.l50))+kpi("Tokens liquidated",pp(A.lqr),A.lqr>.5?"r":"y","avg adds "+A.na.toFixed(1))+kpi("Round-trip cost",rt.toFixed(0)+"%",rt>40?"r":rt>15?"y":"g","of margin, fees+slippage")+kpi("Funding cost",(q.L*q.fund*3).toFixed(1)+"%",q.L*q.fund*3>5?"r":"y","of margin per day");
+$("#vd").innerHTML=`At <b>×${q.L}</b> the typical run ends at <b>${x2(A.p50)}</b>, the best 10% at <b>${x2(A.p90)}</b>. Pyramiding changes the mean by <b>${(A.mean-S.mean>=0?"+":"")+(A.mean-S.mean).toFixed(2)}×</b> vs. no adds. Each entry and exit burns ${rt.toFixed(0)}% of margin at this leverage.`;
+explain(A,S,q);const sm=a=>({mean:a.mean,p10:a.p10,p50:a.p50,p90:a.p90,lose50:a.l50,liq:a.lqr,adds:a.na});LOG.push({tab:"sim",L:q.L,bul:q.bul,trig:q.trig,f:q.f,market:q.drift,pyramid:sm(A),static:sm(S)});sync();$("#go").disabled=0;$("#go").textContent="Run simulation"}
+function ladder(){const q=rd(),L=q.L,fe=(q.fee+q.slip)/100,mm=q.mmr/100,f=q.f/100,C=q.cap*q.bul/100;let qy=C*L,co=qy,w=C-co*fe,dp=0,h="<table><tr><th>Step</th><th>ROE</th><th>Price</th><th>Notional</th><th>Avg entry</th><th>Breakeven stop</th><th>Liq price</th><th>Liq distance</th><th>Equity</th><th>Back to 1.00</th></tr>";
+for(let k=0;k<=q.maxAdds;k++){const px=Math.pow(1+q.trig/100/L,k);if(k){const u=qy*px-co,eq=w+u,an=Math.max(0,Math.min(f*Math.max(0,u-dp)*L,(eq-qy*px/L)*L));if(an>0){qy+=an/px;co+=an;w-=an*fe;dp+=an/L}}
+const eq=w+qy*px-co,lqp=(co-w)/(qy*(1-mm)),rt=(w+qy-co)/C;h+=`<tr><td>${k}</td><td>+${(k*q.trig).toFixed(0)}%</td><td>${px.toFixed(4)}</td><td>${(qy*px).toFixed(0)}</td><td>${(co/qy).toFixed(4)}</td><td>${(co/qy*(1+2*fe)).toFixed(4)}</td><td>${Math.max(0,lqp).toFixed(4)}</td><td>${((1-lqp/px)*100).toFixed(1)}%</td><td>${x2(eq/C)}</td><td class="${rt>=1?"g":"r"}">${x2(rt)}</td></tr>`}
+$("#lo").innerHTML=h+"</table>"}
+async function scan(){const q=rd(),X=gen(q),Ls=[...new Set([4,10,25,50,75,100,q.L])].sort((a,b)=>a-b),rs=[];$("#go").disabled=1;
+for(const L of Ls){$("#go").textContent="Scanning ×"+L+"…";await pause();rs.push({L,...agg(X,{...q,L},false)})}
+const mx=Math.max(...rs.map(r=>Math.max(r.mean,r.p50)),1),best=rs.reduce((b,r)=>r.mean>b.mean?r:b);
+$("#so").innerHTML="<table><tr><th>Leverage</th><th>Mean</th><th></th><th>Median</th><th></th><th>Lose >50%</th><th>Liquidated</th></tr>"+rs.map(r=>`<tr><td><b>×${r.L}</b>${r===best?' <span class="g">best mean</span>':""}</td><td>${x2(r.mean)}</td><td><div class="bar"><i style="width:${r.mean/mx*100}%"></i></div></td><td>${x2(r.p50)}</td><td><div class="bar m"><i style="width:${r.p50/mx*100}%"></i></div></td><td>${pp(r.l50)}</td><td>${pp(r.lqr)}</td></tr>`).join("")+"</table>";
+const bm=rs.reduce((b,r)=>r.p50>b.p50?r:b),sf=rs.reduce((b,r)=>r.l50<b.l50?r:b);$("#sw").innerHTML=`<ul class="ex" style="margin-top:12px"><li>Best <b>average</b>: ×${best.L} (${x2(best.mean)}). Best <b>typical</b> run: ×${bm.L} (${x2(bm.p50)}). Fewest heavy losses: ×${sf.L} (${pp(sf.l50)} end below 0.5×).</li><li>${best.p50<1?`At ×${best.L} the average beats break-even but the typical run does not. That edge comes from a few lucky winners, so size each bullet as money you accept losing.`:`The best average also has a typical run above break-even, a healthier sign.`}</li><li>Higher leverage is not always better. Costs grow and the liquidation gap shrinks with leverage, so the outcome peaks and then falls. The peak is your sweet spot for these settings.</li></ul>`;LOG.push({tab:"scan",market:q.drift,rows:rs.map(r=>({L:r.L,mean:r.mean,p50:r.p50,p90:r.p90,lose50:r.l50,liq:r.lqr}))});sync();$("#go").disabled=0;$("#go").textContent="Scan leverage"}
+async function tune(){const q=rd(),X=gen(q),res=[];$("#tn").disabled=1;let i=0;
+for(const trig of[25,50,100,200])for(const f of[30,60,100])for(const sf of[.4,.6,.8]){const a=agg(X,{...q,trig,f,stopF:sf},false);res.push({trig,f,sf,mean:a.mean,p50:a.p50,p90:a.p90,l50:a.l50});$("#tn").textContent="Tuning "+(++i)+"/36";await pause()}
+const ok=res.filter(r=>r.l50<=.4),pool=ok.length?ok:res;OPT=pool.sort((a,b)=>b.mean-a.mean).slice(0,6);
+$("#to").innerHTML=`<div class="mu" style="margin-top:12px">${ok.length?"Ranked by mean outcome among rules that end below 0.5× in at most 40% of runs.":"No rule met the 40% cap at this leverage; showing best means."}</div><table><tr><th>Add every ROE %</th><th>Reinvest %</th><th>Stop % of liq</th><th>Mean</th><th>Median</th><th>Top 10%</th><th>Below 0.5×</th><th></th></tr>`+OPT.map((r,j)=>`<tr><td>${r.trig}</td><td>${r.f}</td><td>${r.sf*100}</td><td>${x2(r.mean)}</td><td>${x2(r.p50)}</td><td>${x2(r.p90)}</td><td>${pp(r.l50)}</td><td><button class="chip" data-j="${j}">Apply</button></td></tr>`).join("")+"</table>";
+LOG.push({tab:"tune",L:q.L,market:q.drift,top:OPT.slice(0,3)});sync();$("#tn").disabled=0;$("#tn").textContent="Tune pyramid rules at this leverage"}
+function show(t){tab=t;$$("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t==t));["sim","lad","scan"].forEach(s=>$("#"+s).hidden=s!=t);$("#go").textContent={sim:"Run simulation",lad:"Update ladder",scan:"Scan leverage"}[t];if(t=="lad")ladder()}
+const act=()=>tab=="sim"?sim():tab=="lad"?ladder():scan();
+function sync(){$("#ex").value=JSON.stringify(LOG.slice(-3),(k,v)=>typeof v=="number"?+v.toFixed(3):v)}
+$("#nv").onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};$("#go").onclick=act;$("#tn").onclick=tune;
+$$("[data-l]").forEach(b=>b.onclick=()=>{$("#L").value=b.dataset.l;$$("[data-l]").forEach(x=>x.classList.toggle("on",x==b));act()});
+$$("[data-m]").forEach(b=>b.onclick=()=>{mk=+b.dataset.m;$$("[data-m]").forEach(x=>x.classList.toggle("on",x==b));act()});
+$("#L").oninput=()=>$$("[data-l]").forEach(x=>x.classList.toggle("on",x.dataset.l==$("#L").value));
+$$("#cap,#bul,#trig,#f").forEach(i=>i.onchange=()=>{if(tab=="lad")ladder()});
+$("#to").onclick=e=>{const r=OPT[e.target.dataset.j];if(!r)return;$("#trig").value=r.trig;$("#f").value=r.f;$("#stopF").value=r.sf*100;show("sim");sim()};
+$("#cp").onclick=()=>{const t=$("#ex");t.select();try{navigator.clipboard.writeText(t.value)}catch(e){}};
+sim();
+</script></body></html>
