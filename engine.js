@@ -391,6 +391,51 @@
     };
   }
 
+  // Counterfactual: hold the same initial leveraged ticket to the end with no adds or strategy exits.
+  // It shares the original entry, mark paths, fee/slippage model, funding and account maintenance checks.
+  function simulateInitialTicket(inputConfig, pricePath) {
+    const c = normalizeConfig(inputConfig);
+    const pricesAt = (i) => [pricePath.a[i], pricePath.b[i]];
+    const state = createInitialState(c);
+    let equity = accountEquity(state, pricesAt(0));
+    let peakForDrawdown = Math.max(1e-9, c.capital, equity);
+    let maxDrawdownPct = Math.max(0, (peakForDrawdown - equity) / peakForDrawdown * 100);
+    let liquidated = false;
+    const curve = [equity];
+    for (let t = 1; t <= c.steps; t++) {
+      if (liquidated) { curve.push(0); continue; }
+      const prices = pricesAt(t);
+      accrueFunding(state, pricesAt(t - 1), prices, c);
+      const markedEquity = accountEquity(state, prices);
+      if (markedEquity <= maintenanceMargin(state, prices, c) || markedEquity <= 0) {
+        liquidated = true;
+        state.cash = 0;
+        state.positions = [{ qty: 0, avgEntry: 0 }, { qty: 0, avgEntry: 0 }];
+        equity = 0;
+        maxDrawdownPct = 100;
+        curve.push(0);
+        continue;
+      }
+      equity = markedEquity;
+      peakForDrawdown = Math.max(peakForDrawdown, equity);
+      maxDrawdownPct = Math.max(maxDrawdownPct, (peakForDrawdown - equity) / peakForDrawdown * 100);
+      curve.push(equity);
+    }
+    if (!liquidated) {
+      const prices = pricesAt(c.steps);
+      let notional = 0;
+      for (let i = 0; i < 2; i++) notional += state.positions[i].qty * prices[i];
+      const closeCost = notional * executionCostRate(c);
+      state.executionCosts += closeCost;
+      equity = Math.max(0, accountEquity(state, prices) - closeCost);
+      curve[curve.length - 1] = equity;
+      peakForDrawdown = Math.max(peakForDrawdown, equity);
+      maxDrawdownPct = Math.max(maxDrawdownPct, (peakForDrawdown - equity) / peakForDrawdown * 100);
+    }
+    return { finalEquity: equity, liquidated, ruin: liquidated || equity <= 0, maxDrawdownPct,
+      fundingPaid: state.fundingPaid, executionCosts: state.executionCosts, curve };
+  }
+
   function percentile(sorted, p) {
     if (!sorted.length) return 0;
     const pos = (sorted.length - 1) * p;
@@ -404,8 +449,10 @@
     const paths = pricePaths || generatePricePaths(c, c.paths);
     if (!paths.length) throw new Error('At least one price path is required.');
     const results = paths.map(path => simulateOne(c, path));
+    const ticketHolds = paths.map(path => simulateInitialTicket(c, path));
     const finals = results.map(r => r.finalEquity).sort((a, b) => a - b);
     const holds = results.map(r => r.buyHoldFinal).sort((a, b) => a - b);
+    const firstTicketFinals = ticketHolds.map(r => r.finalEquity).sort((a, b) => a - b);
     const mdds = results.map(r => r.maxDrawdownPct).sort((a, b) => a - b);
     const count = results.length;
     const liquidations = results.filter(r => r.liquidated).length;
@@ -421,24 +468,33 @@
     const meanExecutionCosts = results.reduce((s, r) => s + r.executionCosts, 0) / count;
     const curve = [];
     const buyHoldCurve = [];
+    const initialTicketCurve = [];
     for (let t = 0; t <= c.steps; t++) {
       const strategyVals = results.map(r => r.curve[t]).sort((a, b) => a - b);
       const holdVals = results.map(r => r.buyHoldSeries[t]).sort((a, b) => a - b);
+      const ticketVals = ticketHolds.map(r => r.curve[t]).sort((a, b) => a - b);
       curve.push({ step: t, p10: percentile(strategyVals, 0.1), p50: percentile(strategyVals, 0.5), p90: percentile(strategyVals, 0.9) });
       buyHoldCurve.push({ step: t, p50: percentile(holdVals, 0.5) });
+      initialTicketCurve.push({ step: t, p50: percentile(ticketVals, 0.5) });
     }
     return {
       config: c,
       curve,
       buyHoldCurve,
+      initialTicketCurve,
       metrics: {
         p10Final: percentile(finals, 0.1), medianFinal: percentile(finals, 0.5), p90Final: percentile(finals, 0.9),
         meanFinal, medianBuyHold: percentile(holds, 0.5), meanBuyHold: meanHold,
+        medianInitialTicketHold: percentile(firstTicketFinals, 0.5), p10InitialTicketHold: percentile(firstTicketFinals, 0.1),
+        meanInitialTicketHold: ticketHolds.reduce((sum, r) => sum + r.finalEquity, 0) / count,
+        initialTicketHoldLiquidationRatePct: ticketHolds.filter(r => r.liquidated).length / count * 100,
         medianMaxDrawdownPct: percentile(mdds, 0.5), p90MaxDrawdownPct: percentile(mdds, 0.9), meanMaxDrawdownPct: meanMdd,
         liquidationRatePct: liquidations / count * 100, ruinRatePct: ruins / count * 100,
         winRatePct: results.filter(r => r.finalEquity > c.capital).length / count * 100,
         outperformBuyHoldPct: results.filter(r => r.finalEquity > r.buyHoldFinal).length / count * 100,
         medianOutperformancePct: percentile(holds, 0.5) > 0 ? (percentile(finals, 0.5) / percentile(holds, 0.5) - 1) * 100 : 0,
+        outperformInitialTicketPct: results.filter((r, i) => r.finalEquity > ticketHolds[i].finalEquity).length / count * 100,
+        medianOutperformanceInitialTicketPct: percentile(firstTicketFinals, 0.5) > 0 ? (percentile(finals, 0.5) / percentile(firstTicketFinals, 0.5) - 1) * 100 : 0,
         meanAdds, meanGateBlocks: meanBlocks, meanFundingPaid, meanExecutionCosts, meanReturnPct: (meanFinal / c.capital - 1) * 100,
         medianReturnPct: (percentile(finals, 0.5) / c.capital - 1) * 100,
         medianBuyHoldReturnPct: (percentile(holds, 0.5) / c.capital - 1) * 100,
@@ -544,6 +600,9 @@
     if (!paths.length) throw new Error('At least one path is required for upside optimization.');
 
     const bm = runSimulation(base, paths).metrics;
+    const ticketHolds = paths.map(path => simulateInitialTicket(base, path));
+    const ticketFinals = ticketHolds.map(r => r.finalEquity).sort((a, b) => a - b);
+    const medianTicketFinal = percentile(ticketFinals, 0.5);
     const baseline = {
       leverage: base.leverage, initialMarginPct: base.initialMarginPct,
       hardStopPct: base.hardStopPct, breakevenActivationPct: base.breakevenActivationPct,
@@ -551,6 +610,9 @@
       medianReturnPct: bm.medianReturnPct, outperformBuyHoldPct: bm.outperformBuyHoldPct,
       medianOutperformancePct: bm.medianOutperformancePct,
       medianMaxDrawdownPct: bm.medianMaxDrawdownPct, p90MaxDrawdownPct: bm.p90MaxDrawdownPct,
+      medianInitialTicketHold: bm.medianInitialTicketHold, p10InitialTicketHold: bm.p10InitialTicketHold,
+      outperformInitialTicketPct: bm.outperformInitialTicketPct,
+      medianOutperformanceInitialTicketPct: bm.medianOutperformanceInitialTicketPct,
       liquidationRatePct: bm.liquidationRatePct, paths: bm.paths
     };
     const candidates = [];
@@ -565,19 +627,21 @@
         });
         const runs = paths.map(path => simulateOne(candidate, path));
         const finals = runs.map(r => r.finalEquity).sort((a, b) => a - b);
-        const holds = runs.map(r => r.buyHoldFinal).sort((a, b) => a - b);
+        const spotHolds = runs.map(r => r.buyHoldFinal).sort((a, b) => a - b);
         const drawdowns = runs.map(r => r.maxDrawdownPct).sort((a, b) => a - b);
         const medianFinal = percentile(finals, 0.5), p10Final = percentile(finals, 0.1);
-        const medianHold = percentile(holds, 0.5);
+        const medianSpotHold = percentile(spotHolds, 0.5);
         const medianReturnPct = (medianFinal / candidate.capital - 1) * 100;
         const p10ReturnPct = (p10Final / candidate.capital - 1) * 100;
         const outperformBuyHoldPct = runs.filter(r => r.finalEquity > r.buyHoldFinal).length / runs.length * 100;
-        const medianOutperformancePct = medianHold > 0 ? (medianFinal / medianHold - 1) * 100 : 0;
+        const medianOutperformancePct = medianSpotHold > 0 ? (medianFinal / medianSpotHold - 1) * 100 : 0;
+        const outperformInitialTicketPct = runs.filter((r, i) => r.finalEquity > ticketHolds[i].finalEquity).length / runs.length * 100;
+        const medianOutperformanceInitialTicketPct = medianTicketFinal > 0 ? (medianFinal / medianTicketFinal - 1) * 100 : 0;
         const medianMaxDrawdownPct = percentile(drawdowns, 0.5), p90MaxDrawdownPct = percentile(drawdowns, 0.9);
         const liquidationRatePct = runs.filter(r => r.liquidated).length / runs.length * 100;
         const ruinRatePct = runs.filter(r => r.ruin).length / runs.length * 100;
         const meanAdds = runs.reduce((sum, r) => sum + r.acceptedAdds, 0) / runs.length;
-        const score = 0.4 * medianReturnPct + 0.25 * p10ReturnPct + 0.35 * medianOutperformancePct
+        const score = 0.35 * medianReturnPct + 0.25 * p10ReturnPct + 0.4 * medianOutperformanceInitialTicketPct
           - 0.4 * medianMaxDrawdownPct - 0.5 * Math.max(0, p90MaxDrawdownPct - 35) - 10 * liquidationRatePct;
         candidates.push({
           config: {
@@ -589,7 +653,8 @@
             breakevenActivationPct: candidate.breakevenActivationPct, breakevenLockPct: candidate.breakevenLockPct
           },
           score, medianFinal, p10Final, p90Final: percentile(finals, 0.9), medianReturnPct, p10ReturnPct,
-          outperformBuyHoldPct, medianOutperformancePct, medianMaxDrawdownPct, p90MaxDrawdownPct,
+          outperformBuyHoldPct, medianOutperformancePct, outperformInitialTicketPct, medianOutperformanceInitialTicketPct,
+          medianInitialTicketHold: medianTicketFinal, medianMaxDrawdownPct, p90MaxDrawdownPct,
           liquidationRatePct, ruinRatePct, meanAdds, paths: paths.length
         });
       }
@@ -627,7 +692,7 @@ function formatSnapshot(state, prices, inputConfig) {
     DEFAULTS, normalizeConfig, accountEquity, maintenanceMargin, usedInitialMargin,
     riskDenominator, liquidationGapPct, maxSafeAddNotional, addPosition,
     createInitialState, conditionalLiquidationPrice, generatePricePaths,
-    simulateOne, runSimulation, calculateLadderPlan, optimizeConfig, optimizeUpsideConfig, scanLeverage, formatSnapshot,
+    simulateOne, simulateInitialTicket, runSimulation, calculateLadderPlan, optimizeConfig, optimizeUpsideConfig, scanLeverage, formatSnapshot,
     percentile, initialPrices, weights, executionCostRate, accrueFunding
   };
 
