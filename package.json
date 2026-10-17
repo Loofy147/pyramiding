@@ -1,0 +1,10 @@
+{
+  "name": "pyramid-risk-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local-first leveraged pyramiding and cross-margin stress simulator",
+  "scripts": {
+    "test": "node --test",
+    "build:standalone": "node tools/build-standalone.js"
+  }
+}

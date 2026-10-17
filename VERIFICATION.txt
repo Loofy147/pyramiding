@@ -1,0 +1,15 @@
+Pyramid Risk Lab v1.0.0 — verification record
+Date: 2026-10-17
+Runtime: Node.js v22.16.0
+
+RESULTS
+- npm test: 16 passed, 0 failed, 0 skipped.
+- npm run build:standalone: PASS; emitted standalone.html (63098 bytes).
+- Determinism check: rebuilt standalone output matched the tested artifact exactly.
+- UI smoke checks: modular engine linkage, essential controls, risk snapshot/chart markers, optimizer/export wiring and standalone script bundling.
+- GitHub Actions CI configured for push and pull_request, using Node.js 22.
+
+LIMITATIONS
+- Native headless Chromium screenshot review was not available in the source environment; pixel-level visual review remains unverified.
+- Exchange-specific liquidation, partial liquidation, maintenance tiers, funding and execution slippage are approximated or omitted.
+- No live trading, exchange connection, API key, or deployment is included.

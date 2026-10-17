@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0d1423">
+  <title>Pyramid Risk Lab — Leveraged Strategy Simulator</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1120;--panel:#111a2b;--panel2:#151f32;--line:#27344a;--text:#ecf2fb;--muted:#91a0b8;--faint:#6b7890;--mint:#70e1bb;--blue:#80a8ff;--amber:#ffca7a;--red:#ff7f8a;--shadow:0 14px 38px #02060d44}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 72% -15%,#1c2f50 0,transparent 40%),var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}a{color:var(--blue)}.app{max-width:1600px;margin:auto;padding:26px 28px 48px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:34px}.brand{display:flex;gap:12px;align-items:center}.brand-mark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(145deg,#76edc6,#368f9f);color:#07201f;font-size:23px;font-weight:900;box-shadow:0 6px 22px #49d9ba22}.brand-name{font-weight:800;letter-spacing:.02em;font-size:15px}.brand-sub{color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase}.top-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}.chip{border:1px solid var(--line);border-radius:99px;padding:6px 10px;color:#b9c5d8;font-size:11px;letter-spacing:.04em;background:#0d1628}.chip.safe{color:var(--mint);border-color:#2e5d58}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:25px}.eyebrow{color:var(--mint);text-transform:uppercase;letter-spacing:.18em;font-size:11px;font-weight:800;margin-bottom:9px}.hero h1{margin:0;font-size:clamp(28px,3.2vw,46px);letter-spacing:-.045em;line-height:1.06}.hero p{margin:12px 0 0;max-width:750px;color:var(--muted);font-size:14px}.hero-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}.btn{border:1px solid var(--line);color:var(--text);background:#18243a;border-radius:10px;padding:10px 14px;font-weight:700;transition:.15s transform,.15s background}.btn:hover{transform:translateY(-1px);background:#22324c}.btn.primary{background:var(--mint);color:#08231c;border-color:var(--mint)}.btn.primary:hover{background:#99efd5}.btn.subtle{background:transparent;color:#bdcbe0}.btn:focus-visible,input:focus-visible{outline:2px solid var(--mint);outline-offset:2px}.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;align-items:start}.sidebar{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;padding-right:3px}.panel{background:linear-gradient(180deg,#121c2e,#101929);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}.controls{padding:16px}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}.panel-head h2,.section-title h2{font-size:16px;letter-spacing:-.02em;margin:0}.panel-head small{color:var(--muted);font-size:11px}.group{border-top:1px solid #263248;padding-top:14px;margin-top:14px}.group:first-of-type{border-top:0;padding-top:0;margin-top:0}.group-title{display:flex;align-items:center;gap:8px;margin-bottom:11px;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#c0cce0}.group-title .dot{width:7px;height:7px;border-radius:50%;background:var(--mint)}.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0}.field.wide{grid-column:1/-1}.field label{display:flex;justify-content:space-between;gap:7px;color:#abb9ce;font-size:11px;margin-bottom:5px}.field label em{font-style:normal;color:#687b96;font-size:10px}.field input{width:100%;min-width:0;background:#0b1424;border:1px solid #293750;border-radius:8px;padding:9px 9px;color:var(--text);font-size:13px}.field input:hover{border-color:#40516e}.help{font-size:10px;color:var(--faint);margin-top:5px}.runbar{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:16px}.runbar .btn{padding:12px 9px}.runbar .primary{font-size:13px}.content{display:grid;gap:18px;min-width:0}.statusline{display:flex;justify-content:space-between;gap:10px;align-items:center;color:var(--muted);font-size:11px;margin-top:-7px}.statusline strong{color:var(--mint);font-weight:700}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.metric{padding:16px;min-height:130px;position:relative;overflow:hidden}.metric:after{content:"";position:absolute;right:-32px;top:-42px;width:100px;height:100px;border-radius:50%;background:#7fe8c00b;pointer-events:none}.metric-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:700}.metric-value{font-size:clamp(22px,2.4vw,31px);letter-spacing:-.045em;line-height:1.2;font-weight:800;margin:10px 0 7px;font-variant-numeric:tabular-nums}.metric-foot{color:var(--muted);font-size:11px}.good{color:var(--mint)!important}.bad{color:var(--red)!important}.warn{color:var(--amber)!important}.section{padding:20px;min-width:0}.section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;margin-bottom:16px}.section-title p{color:var(--muted);font-size:12px;margin:5px 0 0;max-width:800px}.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:11px;align-items:center}.legend span{display:inline-flex;gap:6px;align-items:center}.key{height:3px;width:17px;border-radius:3px;display:inline-block;background:var(--mint)}.key.hold{background:var(--blue)}.key.band{height:10px;background:#70e1bb30;border:1px solid #70e1bb70}.chart-wrap{width:100%;overflow:hidden}.chart{display:block;width:100%;height:auto;min-height:200px}.chart text{fill:#8191aa;font:11px system-ui,sans-serif}.chart .grid{stroke:#29364b;stroke-width:1;stroke-dasharray:3 5}.chart .axis{stroke:#36445b;stroke-width:1}.chart .area{fill:#70e1bb1d}.chart .median{stroke:var(--mint);stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round}.chart .holdline{stroke:var(--blue);stroke-width:2;fill:none;stroke-dasharray:5 4;stroke-linecap:round}.chart-note{display:flex;justify-content:space-between;gap:12px;margin-top:6px;color:var(--faint);font-size:10px}.table-wrap{overflow:auto;border:1px solid #253149;border-radius:10px}table{width:100%;border-collapse:collapse;min-width:650px;font-size:12px}th{font-size:10px;color:#8e9db6;text-transform:uppercase;letter-spacing:.08em;text-align:left;font-weight:700;background:#0d1626}th,td{padding:11px 12px;border-bottom:1px solid #253149;white-space:nowrap}td{color:#d7e1ef;font-variant-numeric:tabular-nums}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#ffffff04}.state{display:inline-flex;border-radius:5px;padding:3px 6px;font-size:10px;font-weight:800;letter-spacing:.02em}.state.added{color:var(--mint);background:#70e1bb16}.state.blocked{color:var(--red);background:#ff7f8a15}.state.skipped{color:#9aabc2;background:#8393a911}.riskgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.riskbox{padding:14px;border:1px solid #27344a;background:#0d1626;border-radius:11px}.riskbox .label{color:var(--muted);font-size:11px}.riskbox .value{font-size:21px;font-weight:800;letter-spacing:-.03em;margin:7px 0;font-variant-numeric:tabular-nums}.riskbox .sub{color:var(--faint);font-size:10px}.formula{padding:12px 14px;border:1px solid #27344a;background:#0c1525;border-radius:10px;margin-top:14px;color:#b9c8dc;font-size:12px}.formula code{color:#b8f5dc;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;white-space:normal}.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}.fineprint{padding:16px 18px;color:#8291a9;font-size:11px;line-height:1.65}.fineprint strong{color:#bdc8d9}.fineprint h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#c3cfe0;margin:0 0 7px}.fineprint p{margin:7px 0}.source-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:9px}.source-links a{font-size:11px;text-decoration:none;border-bottom:1px solid #40516b;padding-bottom:1px}.opt-table{min-width:620px}.opt-table button{background:#192943;border:1px solid #344761;color:#e8f2ff;border-radius:6px;padding:5px 8px;font-size:10px;font-weight:700}.opt-table button:hover{border-color:var(--mint)}.hidden{display:none!important}.blank{padding:24px;border:1px dashed #34445f;border-radius:10px;color:var(--muted);font-size:12px}.footer{display:flex;justify-content:space-between;gap:15px;color:#62718a;font-size:10px;margin-top:21px;padding:0 4px}.toast{position:fixed;bottom:18px;right:18px;background:#17283d;border:1px solid #34516a;border-radius:10px;padding:12px 15px;color:#e4f6ef;box-shadow:var(--shadow);z-index:10;max-width:340px;font-size:12px}
+    @media(max-width:1120px){.layout{grid-template-columns:290px minmax(0,1fr)}.app{padding:22px 18px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{align-items:flex-start;flex-direction:column}.hero-actions{justify-content:flex-start}}
+    @media(max-width:790px){.app{padding:16px 12px 32px}.topbar{align-items:flex-start;flex-direction:column;margin-bottom:24px}.top-chips{justify-content:flex-start}.layout{grid-template-columns:1fr}.sidebar{position:static;max-height:none;overflow:visible}.controls{padding:14px}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}.content{gap:12px}.section{padding:15px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.metric{padding:13px;min-height:118px}.metric-value{font-size:24px}.split{grid-template-columns:1fr}.riskgrid{grid-template-columns:1fr}.chart{min-height:180px}.footer{flex-direction:column}.statusline{align-items:flex-start;flex-direction:column}}
+    @media(max-width:430px){.cards{grid-template-columns:1fr 1fr}.metric-value{font-size:21px}.fields{gap:8px}.field input{padding:9px 7px}.hero h1{font-size:30px}.hero-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.hero-actions .btn{padding:10px 8px}.section-title{flex-direction:column}.runbar{grid-template-columns:1fr}.field label{font-size:10px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true">⌁</div><div><div class="brand-name">PYRAMID RISK LAB</div><div class="brand-sub">Leveraged systems sandbox</div></div></div>
+      <div class="top-chips"><span class="chip safe">● LOCAL-ONLY</span><span class="chip">SEEDED / REPRODUCIBLE</span><span class="chip">SIMULATION — NOT ADVICE</span></div>
+    </header>
+
+    <section class="hero">
+      <div><div class="eyebrow">Cross-margin stress workbench</div><h1>Build the ladder.<br>Stress the account.</h1><p>Model a two-asset leveraged pyramid, enforce a minimum liquidation buffer on every add, and compare outcome distributions against a spot buy-and-hold baseline. No exchange connection or live prices.</p></div>
+      <div class="hero-actions"><button id="runBtn" class="btn primary">▶ Run stress test</button><button id="optBtn" class="btn">⌘ Find safer settings</button><button id="csvBtn" class="btn subtle">↓ Export CSV</button><button id="jsonBtn" class="btn subtle">↓ Export JSON</button></div>
+    </section>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <form id="configForm" class="panel controls">
+          <div class="panel-head"><h2>Strategy inputs</h2><button type="button" id="resetBtn" class="btn subtle" style="padding:5px 8px;font-size:10px">Reset</button></div>
+          <div class="group">
+            <div class="group-title"><span class="dot"></span> Account & margin</div>
+            <div class="fields">
+              <div class="field wide"><label for="capital">Starting equity <em>USDT</em></label><input id="capital" type="number" min="100" max="1000000000" step="100" value="10000" required></div>
+              <div class="field"><label for="leverage">Leverage <em>×</em></label><input id="leverage" type="number" min="1" max="100" step="0.5" value="5" required></div>
+              <div class="field"><label for="mmrPct">Maintenance <em>% notional</em></label><input id="mmrPct" type="number" min="0.01" max="20" step="0.05" value="0.5" required></div>
+              <div class="field"><label for="feePct">Fee per side <em>% notional</em></label><input id="feePct" type="number" min="0" max="5" step="0.01" value="0.04" required></div>
+              <div class="field"><label for="maxMarginUsePct">Max initial margin <em>% equity</em></label><input id="maxMarginUsePct" type="number" min="1" max="95" step="1" value="40" required></div>
+            </div>
+            <div class="help">Flat maintenance rate and fee approximation. Exchange tiers are not loaded.</div>
+          </div>
+          <div class="group">
+            <div class="group-title"><span class="dot"></span> Pyramiding rules</div>
+            <div class="fields">
+              <div class="field"><label for="initialMarginPct">Starter margin <em>% equity</em></label><input id="initialMarginPct" type="number" min="0.1" max="100" step="0.5" value="30" required></div>
+              <div class="field"><label for="addMarginPct">Each add <em>% equity</em></label><input id="addMarginPct" type="number" min="0" max="25" step="0.25" value="1.5" required></div>
+              <div class="field"><label for="ladderStepPct">Add trigger <em>% rise</em></label><input id="ladderStepPct" type="number" min="0.25" max="50" step="0.25" value="3" required></div>
+              <div class="field"><label for="maxAdds">Max adds / asset</label><input id="maxAdds" type="number" min="0" max="20" step="1" value="4" required></div>
+              <div class="field"><label for="safetyBufferPct">Min liquidation gap <em>%</em></label><input id="safetyBufferPct" type="number" min="1" max="80" step="1" value="20" required></div>
+              <div class="field"><label for="weightA">Asset A weight <em>%</em></label><input id="weightA" type="number" min="1" max="99" step="1" value="70" required></div>
+            </div>
+            <div class="help">Sizing is clipped by the safety-gap gate and maximum initial-margin usage. A rejected add does not increase exposure.</div>
+          </div>
+          <div class="group">
+            <div class="group-title"><span class="dot"></span> Exit gates</div>
+            <div class="fields">
+              <div class="field"><label for="hardStopPct">Hard stop <em>% below avg entry</em></label><input id="hardStopPct" type="number" min="0" max="95" step="1" value="15" required></div>
+              <div class="field"><label for="trailActivationPct">Arm trailing <em>% equity gain</em></label><input id="trailActivationPct" type="number" min="0" max="500" step="1" value="5" required></div>
+              <div class="field"><label for="trailingStopPct">Trail pullback <em>% from peak equity</em></label><input id="trailingStopPct" type="number" min="0.1" max="95" step="1" value="8" required></div>
+              <div class="field"><label for="breakevenActivationPct">Arm breakeven <em>% equity gain</em></label><input id="breakevenActivationPct" type="number" min="0" max="500" step="1" value="5" required></div>
+              <div class="field wide"><label for="breakevenLockPct">Breakeven lock <em>% vs initial equity</em></label><input id="breakevenLockPct" type="number" min="-90" max="300" step="0.5" value="0" required></div>
+            </div>
+            <div class="help">Set hard stop to 0 to disable it. Stop exits close the modeled portfolio and pay an estimated exit fee.</div>
+          </div>
+          <div class="group">
+            <div class="group-title"><span class="dot"></span> Market & Monte Carlo</div>
+            <div class="fields">
+              <div class="field"><label for="startingPriceA">Asset A anchor <em>USDT</em></label><input id="startingPriceA" type="number" min="0.000001" step="100" value="65000" required></div>
+              <div class="field"><label for="startingPriceB">Asset B anchor <em>USDT</em></label><input id="startingPriceB" type="number" min="0.000001" step="10" value="3200" required></div>
+              <div class="field"><label for="steps">Path steps</label><input id="steps" type="number" min="1" max="1000" step="1" value="120" required></div>
+              <div class="field"><label for="paths">Monte Carlo paths</label><input id="paths" type="number" min="10" max="5000" step="10" value="500" required></div>
+              <div class="field"><label for="driftPct">Mean return <em>% / step</em></label><input id="driftPct" type="number" min="-10" max="10" step="0.01" value="0.03" required></div>
+              <div class="field"><label for="volPct">Volatility <em>% / step</em></label><input id="volPct" type="number" min="0" max="50" step="0.1" value="1.5" required></div>
+              <div class="field"><label for="correlation">Correlation <em>−1 to 1</em></label><input id="correlation" type="number" min="-1" max="1" step="0.05" value="0.65" required></div>
+              <div class="field"><label for="seed">Random seed</label><input id="seed" type="number" min="0" max="2147483647" step="1" value="12345" required></div>
+            </div>
+            <div class="help">Both assets share one account wallet. Paths are synthetic geometric-return scenarios, not forecasts. The step is user-defined, not a calendar interval.</div>
+          </div>
+          <div class="runbar"><button type="button" id="sideRunBtn" class="btn primary">Run with these inputs</button><button type="button" id="randomSeedBtn" class="btn" title="Create a new deterministic random seed">↻ Seed</button></div>
+        </form>
+      </aside>
+
+      <main class="content">
+        <div class="statusline"><span id="statusText">Preparing seeded scenario set…</span><span id="configStatus"><strong>Cross-margin model</strong> · two correlated assets</span></div>
+        <section class="cards" aria-label="Simulation summary metrics">
+          <article class="panel metric"><div class="metric-label">Median terminal equity</div><div class="metric-value" id="medianFinal">—</div><div class="metric-foot" id="medianFoot">P50 across simulated paths</div></article>
+          <article class="panel metric"><div class="metric-label">10th percentile outcome</div><div class="metric-value" id="p10Final">—</div><div class="metric-foot">Downside tail · not worst case</div></article>
+          <article class="panel metric"><div class="metric-label">90th percentile outcome</div><div class="metric-value" id="p90Final">—</div><div class="metric-foot">Upside tail · not a target</div></article>
+          <article class="panel metric"><div class="metric-label">Liquidation rate</div><div class="metric-value" id="liqRate">—</div><div class="metric-foot" id="liqFoot">Paths liquidated under model assumptions</div></article>
+          <article class="panel metric"><div class="metric-label">Median max drawdown</div><div class="metric-value" id="mdd">—</div><div class="metric-foot">Peak-to-trough equity drawdown</div></article>
+          <article class="panel metric"><div class="metric-label">Median vs buy-and-hold</div><div class="metric-value" id="vsHold">—</div><div class="metric-foot" id="holdFoot">Same starting capital and asset weights</div></article>
+          <article class="panel metric"><div class="metric-label">Account ruin rate</div><div class="metric-value" id="ruinRate">—</div><div class="metric-foot">Liquidation or zero-equity terminal outcome</div></article>
+          <article class="panel metric"><div class="metric-label">Accepted adds / path</div><div class="metric-value" id="meanAdds">—</div><div class="metric-foot">Average successful pyramid additions</div></article>
+          <article class="panel metric"><div class="metric-label">Safety-gated attempts / path</div><div class="metric-value" id="meanBlocks">—</div><div class="metric-foot">Attempts blocked by margin or gap limit</div></article>
+        </section>
+
+        <section class="panel section">
+          <div class="section-title"><div><h2>Equity paths · uncertainty band</h2><p>P10–P90 shaded range and P50 median equity across paths. Dashed line is a spot buy-and-hold baseline with the same initial asset weights.</p></div><div class="legend"><span><i class="key band"></i>P10–P90</span><span><i class="key"></i>P50 strategy</span><span><i class="key hold"></i>Buy & hold</span></div></div>
+          <div id="chartWrap" class="chart-wrap"><div class="blank">Run a stress test to render the distribution chart.</div></div>
+          <div class="chart-note"><span>Equity is marked to the synthetic price path at each step.</span><span>Terminal values include estimated close-out fees.</span></div>
+          <div id="exitBreakdown" class="legend" style="margin-top:13px;gap:7px;flex-wrap:wrap"></div>
+        </section>
+
+        <section class="panel section">
+          <div class="section-title"><div><h2>Deterministic ladder calculator</h2><p>Reference case: both assets rally together by one trigger interval at each level. The gate clips or rejects adds to preserve the configured buffer; this is not a forecast.</p></div><span class="chip">REFERENCE RALLY</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Level</th><th>Asset A trigger</th><th>Asset B trigger</th><th>Equity before adds</th><th>Gap before → after</th><th>Asset A add</th><th>Asset B add</th></tr></thead><tbody id="ladderBody"><tr><td colspan="7">Run a stress test to calculate the ladder.</td></tr></tbody></table></div>
+          <div class="formula"><strong>Safety gate</strong> &nbsp; <code>Nmax = (H − bD) / (m + f + b(1 − m))</code><br><span style="color:var(--muted)">H = equity − maintenance margin · D = Σ(q × mark × (1 − m)) · b = target gap · m = maintenance rate · f = estimated entry fee. Add size is additionally capped by available initial-margin capacity.</span></div>
+        </section>
+
+        <section class="panel section">
+          <div class="section-title"><div><h2>Liquidation & retrace snapshot</h2><p>Initial portfolio state; liquidation prices hold the other asset's mark fixed. A blank price means the simplified equation places the threshold at or below zero for that conditional case.</p></div><span id="gapBadge" class="chip">— liquidation gap</span></div>
+          <div class="riskgrid" id="riskSnapshot"><div class="riskbox"><div class="label">Shared account</div><div class="value">—</div><div class="sub">Run a stress test for model metrics</div></div></div>
+          <div class="formula"><strong>Conditional liquidation price (linear long)</strong><br><code>LPᵢ = (qᵢEᵢ + MM₋ᵢ − Cash − UPNL₋ᵢ) / (qᵢ(1 − m))</code><br><span style="color:var(--muted)">This is an analytical approximation for constant maintenance rate, linear USDT-margined long positions and fixed other marks. Actual cross-margin liquidation is triggered by account risk rules and can change with tiers, fees, funding, mark price and other positions.</span></div>
+        </section>
+
+        <section class="panel section">
+          <div class="section-title"><div><h2>Optimization candidates</h2><p>Small grid search over ladder interval, add size and safety buffer. Ranked by a transparent risk-adjusted score using the same sample paths; results are in-sample and require out-of-sample validation.</p></div><button id="optSectionBtn" class="btn">Run optimizer</button></div>
+          <div id="optimizerWrap" class="blank">Optimizer has not run. It evaluates up to 27 parameter combinations using up to 250 common seeded paths.</div>
+        </section>
+
+        <section class="panel fineprint">
+          <h3>Model scope & known limitations</h3>
+          <p><strong>Modeled:</strong> two long-only linear assets, shared wallet equity, constant maintenance-margin percentage, fee-per-side approximation, leverage-based margin capacity, correlated log-return paths, per-add safety gating, hard stop, trailing-equity stop, breakeven lock, liquidation/ruin tracking, terminal percentiles and spot baseline.</p>
+          <p><strong>Not modeled:</strong> exchange-specific risk tiers and deductions, mark/index basis, funding payments, spread/slippage beyond the fee assumption, partial liquidation, close-order execution gaps, hedge/short positions, portfolio offsets, exchange outages or real market data. Liquidation is conservatively recorded as total modeled equity loss once the account crosses maintenance.</p>
+          <p>For exchange-specific context, see the official rule descriptions. Their examples and formulas are venue- and contract-dependent:</p>
+          <div class="source-links"><a href="https://www.binance.com/en/support/faq/detail/360033525271" target="_blank" rel="noreferrer">Binance liquidation protocol ↗</a><a href="https://www.binance.com/en/support/faq/detail/b3c689c1f50a44cabb3a84e663b81d93" target="_blank" rel="noreferrer">Binance USDT-M calculation ↗</a><a href="https://www.bybit.com/en/help-center/article/UTA-Trading-Rules-Liquidation-Process" target="_blank" rel="noreferrer">Bybit cross-margin process ↗</a></div>
+          <p>This tool is for analytical testing and software validation only. It does not provide investment advice or establish a profitable strategy.</p>
+        </section>
+      </main>
+    </div>
+    <footer class="footer"><span>PYRAMID RISK LAB · v1.0.0 · browser-local calculations</span><span>Seeded runs are reproducible for the same inputs and software version.</span></footer>
+  </div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script>
+(function (root) {
+  'use strict';
+
+  const DEFAULTS = {
+    capital: 10000, leverage: 5, mmrPct: 0.5, feePct: 0.04,
+    initialMarginPct: 30, addMarginPct: 1.5, maxMarginUsePct: 40,
+    safetyBufferPct: 20, ladderStepPct: 3, maxAdds: 4,
+    hardStopPct: 15, trailingStopPct: 8, trailActivationPct: 5,
+    breakevenActivationPct: 5, breakevenLockPct: 0,
+    startingPriceA: 65000, startingPriceB: 3200, weightA: 70,
+    steps: 120, paths: 500, driftPct: 0.03, volPct: 1.5,
+    correlation: 0.65, seed: 12345
+  };
+
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const num = (v, fallback) => Number.isFinite(Number(v)) ? Number(v) : fallback;
+  const rate = (pct) => Math.max(0, num(pct, 0)) / 100;
+
+  function normalizeConfig(input = {}) {
+    const c = { ...DEFAULTS, ...input };
+    c.capital = clamp(num(c.capital, DEFAULTS.capital), 100, 1e9);
+    c.leverage = clamp(num(c.leverage, DEFAULTS.leverage), 1, 100);
+    c.mmrPct = clamp(num(c.mmrPct, DEFAULTS.mmrPct), 0.01, 20);
+    c.feePct = clamp(num(c.feePct, DEFAULTS.feePct), 0, 5);
+    c.initialMarginPct = clamp(num(c.initialMarginPct, DEFAULTS.initialMarginPct), 0.1, 100);
+    c.addMarginPct = clamp(num(c.addMarginPct, DEFAULTS.addMarginPct), 0, 25);
+    c.maxMarginUsePct = clamp(num(c.maxMarginUsePct, DEFAULTS.maxMarginUsePct), 1, 95);
+    c.safetyBufferPct = clamp(num(c.safetyBufferPct, DEFAULTS.safetyBufferPct), 1, 80);
+    c.ladderStepPct = clamp(num(c.ladderStepPct, DEFAULTS.ladderStepPct), 0.25, 50);
+    c.maxAdds = Math.round(clamp(num(c.maxAdds, DEFAULTS.maxAdds), 0, 20));
+    c.hardStopPct = clamp(num(c.hardStopPct, DEFAULTS.hardStopPct), 0, 95);
+    c.trailingStopPct = clamp(num(c.trailingStopPct, DEFAULTS.trailingStopPct), 0.1, 95);
+    c.trailActivationPct = clamp(num(c.trailActivationPct, DEFAULTS.trailActivationPct), 0, 500);
+    c.breakevenActivationPct = clamp(num(c.breakevenActivationPct, DEFAULTS.breakevenActivationPct), 0, 500);
+    c.breakevenLockPct = clamp(num(c.breakevenLockPct, DEFAULTS.breakevenLockPct), -90, 300);
+    c.startingPriceA = clamp(num(c.startingPriceA, DEFAULTS.startingPriceA), 0.000001, 1e12);
+    c.startingPriceB = clamp(num(c.startingPriceB, DEFAULTS.startingPriceB), 0.000001, 1e12);
+    c.weightA = clamp(num(c.weightA, DEFAULTS.weightA), 1, 99);
+    c.steps = Math.round(clamp(num(c.steps, DEFAULTS.steps), 1, 1000));
+    c.paths = Math.round(clamp(num(c.paths, DEFAULTS.paths), 10, 5000));
+    c.driftPct = clamp(num(c.driftPct, DEFAULTS.driftPct), -10, 10);
+    c.volPct = clamp(num(c.volPct, DEFAULTS.volPct), 0, 50);
+    c.correlation = clamp(num(c.correlation, DEFAULTS.correlation), -1, 1);
+    c.seed = Math.trunc(clamp(num(c.seed, DEFAULTS.seed), 0, 2147483647));
+    return c;
+  }
+
+  function initialPrices(c) { return [c.startingPriceA, c.startingPriceB]; }
+  function weights(c) { return [c.weightA / 100, 1 - c.weightA / 100]; }
+
+  function accountEquity(state, prices) {
+    let eq = state.cash;
+    for (let i = 0; i < 2; i++) {
+      const p = state.positions[i];
+      if (p.qty > 0) eq += p.qty * (prices[i] - p.avgEntry);
+    }
+    return eq;
+  }
+
+  function maintenanceMargin(state, prices, c) {
+    const mmr = rate(c.mmrPct);
+    let mm = 0;
+    for (let i = 0; i < 2; i++) mm += state.positions[i].qty * prices[i] * mmr;
+    return mm;
+  }
+
+  function usedInitialMargin(state, prices, c) {
+    let used = 0;
+    for (let i = 0; i < 2; i++) used += state.positions[i].qty * prices[i] / c.leverage;
+    return used;
+  }
+
+  function riskDenominator(state, prices, c) {
+    const mmr = rate(c.mmrPct);
+    let d = 0;
+    for (let i = 0; i < 2; i++) d += state.positions[i].qty * prices[i] * (1 - mmr);
+    return d;
+  }
+
+  function liquidationGapPct(state, prices, c) {
+    const d = riskDenominator(state, prices, c);
+    if (d <= 0) return 10000;
+    return Math.max(0, (accountEquity(state, prices) - maintenanceMargin(state, prices, c)) / d) * 100;
+  }
+
+  function maxSafeAddNotional(state, prices, c) {
+    const eq = accountEquity(state, prices);
+    const mm = maintenanceMargin(state, prices, c);
+    const d = riskDenominator(state, prices, c);
+    const headroom = eq - mm;
+    if (eq <= 0 || headroom <= 0) return 0;
+    const target = rate(c.safetyBufferPct);
+    const bufferHeadroom = headroom - target * d;
+    if (bufferHeadroom <= 0) return 0;
+    const mmr = rate(c.mmrPct);
+    const fee = rate(c.feePct);
+    const denominator = mmr + fee + target * (1 - mmr);
+    const notionalByGap = denominator > 0 ? bufferHeadroom / denominator : 0;
+    const maxUse = rate(c.maxMarginUsePct);
+    const marginRoom = Math.max(0, maxUse * eq - usedInitialMargin(state, prices, c));
+    // Include the new entry fee in the equity denominator of the margin-utilization cap.
+    const notionalByInitialMargin = marginRoom / (1 / c.leverage + maxUse * rate(c.feePct));
+    return Math.max(0, Math.min(notionalByGap, notionalByInitialMargin));
+  }
+
+  function addPosition(state, assetIndex, marginBudget, prices, inputConfig) {
+    const c = normalizeConfig(inputConfig);
+    const idx = assetIndex === 1 ? 1 : 0;
+    const price = prices[idx];
+    const eq = accountEquity(state, prices);
+    const desired = Math.max(0, marginBudget) * c.leverage;
+    const cap = maxSafeAddNotional(state, prices, c);
+    const notional = Math.min(desired, cap);
+    const minNotional = Math.max(1e-8, c.capital * 1e-9);
+    if (!(price > 0) || !(eq > 0) || !(notional >= minNotional)) {
+      return { accepted: false, status: 'blocked', notional: 0, fee: 0 };
+    }
+    const fee = notional * rate(c.feePct);
+    const position = state.positions[idx];
+    const qty = notional / price;
+    if (position.qty === 0) {
+      position.qty = qty;
+      position.avgEntry = price;
+      state.lastAddPrice[idx] = price;
+    } else {
+      position.avgEntry = ((position.avgEntry * position.qty) + (price * qty)) / (position.qty + qty);
+      position.qty += qty;
+      state.addCounts[idx] += 1;
+      state.lastAddPrice[idx] = price;
+    }
+    state.cash -= fee;
+    return { accepted: true, status: 'added', notional, fee, qty, price };
+  }
+
+  function createInitialState(inputConfig) {
+    const c = normalizeConfig(inputConfig);
+    const prices = initialPrices(c);
+    const state = {
+      cash: c.capital,
+      initialCapital: c.capital,
+      positions: [{ qty: 0, avgEntry: 0 }, { qty: 0, avgEntry: 0 }],
+      addCounts: [0, 0],
+      lastAddPrice: [...prices],
+      gateBlocks: 0,
+      acceptedAdds: 0
+    };
+    const w = weights(c);
+    for (let i = 0; i < 2; i++) {
+      const marginBudget = c.capital * rate(c.initialMarginPct) * w[i];
+      addPosition(state, i, marginBudget, prices, c);
+    }
+    return state;
+  }
+
+  function conditionalLiquidationPrice(state, assetIndex, prices, inputConfig) {
+    const c = normalizeConfig(inputConfig);
+    const idx = assetIndex === 1 ? 1 : 0;
+    const p = state.positions[idx];
+    if (!p || p.qty <= 0) return null;
+    const mmr = rate(c.mmrPct);
+    if (mmr >= 1) return null;
+    let equityOther = state.cash;
+    let mmOther = 0;
+    for (let i = 0; i < 2; i++) {
+      if (i === idx) continue;
+      const q = state.positions[i].qty;
+      if (q > 0) {
+        equityOther += q * (prices[i] - state.positions[i].avgEntry);
+        mmOther += q * prices[i] * mmr;
+      }
+    }
+    const numerator = p.qty * p.avgEntry + mmOther - equityOther;
+    const denominator = p.qty * (1 - mmr);
+    if (denominator <= 0) return null;
+    const result = numerator / denominator;
+    return Number.isFinite(result) && result > 0 ? result : null;
+  }
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function normalGenerator(rng) {
+    let spare = null;
+    return function normal() {
+      if (spare !== null) { const v = spare; spare = null; return v; }
+      let u = 0, v = 0;
+      while (u <= Number.EPSILON) u = rng();
+      while (v <= Number.EPSILON) v = rng();
+      const mag = Math.sqrt(-2 * Math.log(u));
+      const theta = 2 * Math.PI * v;
+      spare = mag * Math.sin(theta);
+      return mag * Math.cos(theta);
+    };
+  }
+
+  function generatePricePaths(inputConfig, requestedCount) {
+    const c = normalizeConfig(inputConfig);
+    const count = Math.round(clamp(num(requestedCount, c.paths), 1, 10000));
+    const rng = mulberry32(c.seed);
+    const normal = normalGenerator(rng);
+    const rho = clamp(c.correlation, -1, 1);
+    const orth = Math.sqrt(Math.max(0, 1 - rho * rho));
+    const mu = c.driftPct / 100;
+    const sigma = c.volPct / 100;
+    const paths = new Array(count);
+    for (let n = 0; n < count; n++) {
+      const a = new Array(c.steps + 1);
+      const b = new Array(c.steps + 1);
+      a[0] = c.startingPriceA;
+      b[0] = c.startingPriceB;
+      for (let t = 1; t <= c.steps; t++) {
+        const z1 = normal();
+        const z2 = rho * z1 + orth * normal();
+        const logA = clamp(mu - 0.5 * sigma * sigma + sigma * z1, -8, 8);
+        const logB = clamp(mu - 0.5 * sigma * sigma + sigma * z2, -8, 8);
+        a[t] = Math.max(1e-10, a[t - 1] * Math.exp(logA));
+        b[t] = Math.max(1e-10, b[t - 1] * Math.exp(logB));
+      }
+      paths[n] = { a, b };
+    }
+    return paths;
+  }
+
+  function closePortfolio(state, prices, c) {
+    const eq = accountEquity(state, prices);
+    let notional = 0;
+    for (let i = 0; i < 2; i++) notional += state.positions[i].qty * prices[i];
+    const closeFee = notional * rate(c.feePct);
+    const finalEquity = Math.max(0, eq - closeFee);
+    state.cash = finalEquity;
+    state.positions = [{ qty: 0, avgEntry: 0 }, { qty: 0, avgEntry: 0 }];
+    return finalEquity;
+  }
+
+  function simulateOne(inputConfig, pricePath) {
+    const c = normalizeConfig(inputConfig);
+    const pricesAt = (i) => [pricePath.a[i], pricePath.b[i]];
+    const state = createInitialState(c);
+    let closed = false;
+    let liquidated = false;
+    let exitReason = 'horizon';
+    let exitStep = c.steps;
+    let equity = accountEquity(state, pricesAt(0));
+    let peakEquity = Math.max(c.capital, equity);
+    let peakForDrawdown = Math.max(1e-9, c.capital, equity);
+    let maxDrawdownPct = peakForDrawdown > 0 ? Math.max(0, (peakForDrawdown - equity) / peakForDrawdown * 100) : 100;
+    let breakevenArmed = false;
+    const curve = [equity];
+    const start = c.capital;
+    const w = weights(c);
+
+    for (let t = 1; t <= c.steps; t++) {
+      const prices = pricesAt(t);
+      if (closed) { curve.push(equity); continue; }
+      equity = accountEquity(state, prices);
+      const mm = maintenanceMargin(state, prices, c);
+      if (equity <= mm || equity <= 0) {
+        liquidated = true;
+        closed = true;
+        exitReason = 'liquidation';
+        exitStep = t;
+        state.cash = 0;
+        state.positions = [{ qty: 0, avgEntry: 0 }, { qty: 0, avgEntry: 0 }];
+        equity = 0;
+        maxDrawdownPct = 100;
+        curve.push(0);
+        continue;
+      }
+
+      peakEquity = Math.max(peakEquity, equity);
+      if (peakEquity > peakForDrawdown) peakForDrawdown = peakEquity;
+      const dd = peakForDrawdown > 0 ? (peakForDrawdown - equity) / peakForDrawdown * 100 : 100;
+      maxDrawdownPct = Math.max(maxDrawdownPct, dd);
+
+      const hardStopped = c.hardStopPct > 0 && state.positions.some((p, i) => p.qty > 0 && prices[i] <= p.avgEntry * (1 - rate(c.hardStopPct)));
+      if (equity >= start * (1 + rate(c.breakevenActivationPct))) breakevenArmed = true;
+      const breakevenStopped = breakevenArmed && equity <= start * (1 + c.breakevenLockPct / 100);
+      const trailArmed = peakEquity >= start * (1 + rate(c.trailActivationPct));
+      const trailingStopped = trailArmed && c.trailingStopPct > 0 && equity <= peakEquity * (1 - rate(c.trailingStopPct));
+
+      if (hardStopped || breakevenStopped || trailingStopped) {
+        exitReason = hardStopped ? 'hard-stop' : breakevenStopped ? 'breakeven-lock' : 'trailing-stop';
+        exitStep = t;
+        equity = closePortfolio(state, prices, c);
+        closed = true;
+        peakForDrawdown = Math.max(peakForDrawdown, equity);
+        maxDrawdownPct = Math.max(maxDrawdownPct, peakForDrawdown > 0 ? (peakForDrawdown - equity) / peakForDrawdown * 100 : 100);
+        curve.push(equity);
+        continue;
+      }
+
+      for (let i = 0; i < 2; i++) {
+        const pos = state.positions[i];
+        if (pos.qty <= 0 || state.addCounts[i] >= c.maxAdds || c.addMarginPct <= 0) continue;
+        const trigger = state.lastAddPrice[i] * (1 + rate(c.ladderStepPct));
+        if (prices[i] + Math.abs(trigger) * 1e-12 < trigger) continue;
+        const budget = Math.max(0, accountEquity(state, prices)) * rate(c.addMarginPct) * w[i];
+        const result = addPosition(state, i, budget, prices, c);
+        if (result.accepted) state.acceptedAdds++;
+        else state.gateBlocks++;
+      }
+      equity = accountEquity(state, prices);
+      peakEquity = Math.max(peakEquity, equity);
+      if (peakEquity > peakForDrawdown) peakForDrawdown = peakEquity;
+      const ddAfterAdds = peakForDrawdown > 0 ? (peakForDrawdown - equity) / peakForDrawdown * 100 : 100;
+      maxDrawdownPct = Math.max(maxDrawdownPct, ddAfterAdds);
+      curve.push(equity);
+    }
+
+    if (!closed) {
+      const prices = pricesAt(c.steps);
+      const grossEq = accountEquity(state, prices);
+      let closeNotional = 0;
+      for (let i = 0; i < 2; i++) closeNotional += state.positions[i].qty * prices[i];
+      equity = Math.max(0, grossEq - closeNotional * rate(c.feePct));
+      curve[curve.length - 1] = equity;
+      peakForDrawdown = Math.max(peakForDrawdown, equity);
+      maxDrawdownPct = Math.max(maxDrawdownPct, peakForDrawdown > 0 ? (peakForDrawdown - equity) / peakForDrawdown * 100 : 100);
+      if (equity <= 0 && grossEq > 0) exitReason = 'horizon-close-out';
+    }
+
+    const holdAt = (t) => {
+      const p = pricesAt(t);
+      return start * (1 - rate(c.feePct)) * (w[0] * p[0] / c.startingPriceA + w[1] * p[1] / c.startingPriceB);
+    };
+    const buyHoldFinal = Math.max(0, holdAt(c.steps) * (1 - rate(c.feePct)));
+    const buyHoldSeries = new Array(c.steps + 1);
+    for (let t = 0; t <= c.steps; t++) buyHoldSeries[t] = t === c.steps ? Math.max(0, holdAt(t) * (1 - rate(c.feePct))) : holdAt(t);
+
+    return {
+      finalEquity: equity,
+      buyHoldFinal,
+      maxDrawdownPct,
+      liquidated,
+      ruin: liquidated || equity <= 0,
+      exitReason,
+      exitStep,
+      acceptedAdds: state.acceptedAdds,
+      gateBlocks: state.gateBlocks,
+      curve,
+      buyHoldSeries
+    };
+  }
+
+  function percentile(sorted, p) {
+    if (!sorted.length) return 0;
+    const pos = (sorted.length - 1) * p;
+    const lo = Math.floor(pos), hi = Math.ceil(pos);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  }
+
+  function runSimulation(inputConfig, pricePaths) {
+    const c = normalizeConfig(inputConfig);
+    const paths = pricePaths || generatePricePaths(c, c.paths);
+    if (!paths.length) throw new Error('At least one price path is required.');
+    const results = paths.map(path => simulateOne(c, path));
+    const finals = results.map(r => r.finalEquity).sort((a, b) => a - b);
+    const holds = results.map(r => r.buyHoldFinal).sort((a, b) => a - b);
+    const mdds = results.map(r => r.maxDrawdownPct).sort((a, b) => a - b);
+    const count = results.length;
+    const liquidations = results.filter(r => r.liquidated).length;
+    const ruins = results.filter(r => r.ruin).length;
+    const exits = {};
+    for (const r of results) exits[r.exitReason] = (exits[r.exitReason] || 0) + 1;
+    const meanFinal = results.reduce((s, r) => s + r.finalEquity, 0) / count;
+    const meanHold = results.reduce((s, r) => s + r.buyHoldFinal, 0) / count;
+    const meanMdd = results.reduce((s, r) => s + r.maxDrawdownPct, 0) / count;
+    const meanAdds = results.reduce((s, r) => s + r.acceptedAdds, 0) / count;
+    const meanBlocks = results.reduce((s, r) => s + r.gateBlocks, 0) / count;
+    const curve = [];
+    const buyHoldCurve = [];
+    for (let t = 0; t <= c.steps; t++) {
+      const strategyVals = results.map(r => r.curve[t]).sort((a, b) => a - b);
+      const holdVals = results.map(r => r.buyHoldSeries[t]).sort((a, b) => a - b);
+      curve.push({ step: t, p10: percentile(strategyVals, 0.1), p50: percentile(strategyVals, 0.5), p90: percentile(strategyVals, 0.9) });
+      buyHoldCurve.push({ step: t, p50: percentile(holdVals, 0.5) });
+    }
+    return {
+      config: c,
+      curve,
+      buyHoldCurve,
+      metrics: {
+        p10Final: percentile(finals, 0.1), medianFinal: percentile(finals, 0.5), p90Final: percentile(finals, 0.9),
+        meanFinal, medianBuyHold: percentile(holds, 0.5), meanBuyHold: meanHold,
+        medianMaxDrawdownPct: percentile(mdds, 0.5), meanMaxDrawdownPct: meanMdd,
+        liquidationRatePct: liquidations / count * 100, ruinRatePct: ruins / count * 100,
+        winRatePct: results.filter(r => r.finalEquity > c.capital).length / count * 100,
+        meanAdds, meanGateBlocks: meanBlocks, meanReturnPct: (meanFinal / c.capital - 1) * 100,
+        medianReturnPct: (percentile(finals, 0.5) / c.capital - 1) * 100,
+        medianBuyHoldReturnPct: (percentile(holds, 0.5) / c.capital - 1) * 100,
+        worstFinal: finals[0], bestFinal: finals[finals.length - 1], paths: count, steps: c.steps
+      },
+      exitCounts: exits
+    };
+  }
+
+  function calculateLadderPlan(inputConfig) {
+    const c = normalizeConfig(inputConfig);
+    const state = createInitialState(c);
+    const startPrices = initialPrices(c);
+    const w = weights(c);
+    const rows = [];
+    const initialState = {
+      equity: accountEquity(state, startPrices),
+      gapPct: liquidationGapPct(state, startPrices, c),
+      prices: [...startPrices],
+      liquidationA: conditionalLiquidationPrice(state, 0, startPrices, c),
+      liquidationB: conditionalLiquidationPrice(state, 1, startPrices, c)
+    };
+    for (let level = 1; level <= c.maxAdds; level++) {
+      const factor = Math.pow(1 + rate(c.ladderStepPct), level);
+      const prices = [startPrices[0] * factor, startPrices[1] * factor];
+      const equityBefore = accountEquity(state, prices);
+      const gapBeforePct = liquidationGapPct(state, prices, c);
+      const statuses = [];
+      for (let i = 0; i < 2; i++) {
+        if (state.positions[i].qty <= 0 || state.addCounts[i] >= c.maxAdds || c.addMarginPct <= 0) {
+          statuses.push('skipped');
+          continue;
+        }
+        const trigger = state.lastAddPrice[i] * (1 + rate(c.ladderStepPct));
+        if (prices[i] + Math.abs(trigger) * 1e-10 < trigger) { statuses.push('waiting'); continue; }
+        const budget = Math.max(0, accountEquity(state, prices)) * rate(c.addMarginPct) * w[i];
+        const added = addPosition(state, i, budget, prices, c);
+        if (added.accepted) { state.acceptedAdds++; statuses.push(`added ${added.notional}`); }
+        else { state.gateBlocks++; statuses.push('blocked'); }
+      }
+      const gapAfterPct = liquidationGapPct(state, prices, c);
+      rows.push({
+        level,
+        triggerA: startPrices[0] * Math.pow(1 + rate(c.ladderStepPct), level),
+        triggerB: startPrices[1] * Math.pow(1 + rate(c.ladderStepPct), level),
+        prices,
+        equityBefore,
+        gapBeforePct,
+        aStatus: statuses[0],
+        bStatus: statuses[1],
+        addStatus: statuses.some(s => s === 'blocked') ? 'blocked' : statuses.filter(s => s.startsWith('added')).length ? 'added' : 'skipped',
+        gapAfterPct,
+        liquidationA: conditionalLiquidationPrice(state, 0, prices, c),
+        liquidationB: conditionalLiquidationPrice(state, 1, prices, c),
+        retraceA: conditionalLiquidationPrice(state, 0, prices, c) == null ? null : (prices[0] - conditionalLiquidationPrice(state, 0, prices, c)) / prices[0] * 100,
+        retraceB: conditionalLiquidationPrice(state, 1, prices, c) == null ? null : (prices[1] - conditionalLiquidationPrice(state, 1, prices, c)) / prices[1] * 100
+      });
+    }
+    return { initialState, rows };
+  }
+
+  function uniqueVals(vals) {
+    return [...new Set(vals.map(v => Math.round(v * 10000) / 10000))];
+  }
+
+  function optimizeConfig(inputConfig, pricePaths) {
+    const base = normalizeConfig(inputConfig);
+    const availablePaths = Array.isArray(pricePaths) && pricePaths.length ? pricePaths : generatePricePaths(base, Math.min(base.paths, 250));
+    const paths = availablePaths.slice(0, Math.min(availablePaths.length, 250));
+    const steps = uniqueVals([Math.max(0.25, base.ladderStepPct - 1), base.ladderStepPct, Math.min(50, base.ladderStepPct + 1)]);
+    const adds = uniqueVals([Math.max(0, base.addMarginPct * 0.5), base.addMarginPct, Math.min(25, base.addMarginPct * 1.5)]);
+    const buffers = uniqueVals([Math.max(1, base.safetyBufferPct - 5), base.safetyBufferPct, Math.min(80, base.safetyBufferPct + 5)]);
+    const candidates = [];
+    for (const step of steps) for (const add of adds) for (const buffer of buffers) {
+      const candidate = { ...base, ladderStepPct: step, addMarginPct: add, safetyBufferPct: buffer };
+      const r = runSimulation(candidate, paths);
+      const m = r.metrics;
+      const score = m.medianReturnPct - 1.5 * m.liquidationRatePct - 0.35 * m.medianMaxDrawdownPct - Math.max(0, m.liquidationRatePct - 5) * 2.5;
+      candidates.push({
+        config: { ladderStepPct: step, addMarginPct: add, safetyBufferPct: buffer },
+        score,
+        medianFinal: m.medianFinal,
+        liquidationRatePct: m.liquidationRatePct,
+        medianMaxDrawdownPct: m.medianMaxDrawdownPct,
+        medianReturnPct: m.medianReturnPct,
+        paths: m.paths
+      });
+    }
+    candidates.sort((a, b) => b.score - a.score || a.liquidationRatePct - b.liquidationRatePct || a.medianMaxDrawdownPct - b.medianMaxDrawdownPct);
+    return candidates.slice(0, 5).map((item, i) => ({ ...item, rank: i + 1 }));
+  }
+
+  function formatSnapshot(state, prices, inputConfig) {
+    const c = normalizeConfig(inputConfig);
+    const eq = accountEquity(state, prices);
+    return {
+      equity: eq,
+      maintenance: maintenanceMargin(state, prices, c),
+      gapPct: liquidationGapPct(state, prices, c),
+      usedMargin: usedInitialMargin(state, prices, c),
+      assets: [0, 1].map(i => {
+        const lp = conditionalLiquidationPrice(state, i, prices, c);
+        return { qty: state.positions[i].qty, avgEntry: state.positions[i].avgEntry, mark: prices[i], liquidationPrice: lp, retracePct: lp == null ? null : (prices[i] - lp) / prices[i] * 100 };
+      })
+    };
+  }
+
+  const api = {
+    DEFAULTS, normalizeConfig, accountEquity, maintenanceMargin, usedInitialMargin,
+    riskDenominator, liquidationGapPct, maxSafeAddNotional, addPosition,
+    createInitialState, conditionalLiquidationPrice, generatePricePaths,
+    simulateOne, runSimulation, calculateLadderPlan, optimizeConfig, formatSnapshot,
+    percentile, initialPrices, weights
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (root) root.PyramidEngine = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+  <script>
+    (() => {
+      'use strict';
+      const $ = (id) => document.getElementById(id);
+      const inputIds = ['capital','leverage','mmrPct','feePct','initialMarginPct','addMarginPct','maxMarginUsePct','safetyBufferPct','ladderStepPct','maxAdds','hardStopPct','trailingStopPct','trailActivationPct','breakevenActivationPct','breakevenLockPct','startingPriceA','startingPriceB','weightA','steps','paths','driftPct','volPct','correlation','seed'];
+      let currentConfig = null, currentPaths = null, currentResult = null, currentLadder = null, optimizerCandidates = null;
+      let toastTimer = null;
+      const usd = (v, decimals = 0) => Number.isFinite(v) ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:decimals,minimumFractionDigits:decimals}).format(v) : '—';
+      const money = (v, decimals = 0) => Number.isFinite(v) ? new Intl.NumberFormat('en-US',{maximumFractionDigits:decimals,minimumFractionDigits:decimals}).format(v) : '—';
+      const pct = (v, decimals = 1) => Number.isFinite(v) ? `${v.toFixed(decimals)}%` : '—';
+      const escapeHtml = (s) => String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+      function notify(msg) { const t=$('toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),3200); }
+      function readConfig() {
+        const raw = {};
+        for (const id of inputIds) {
+          const el=$(id);
+          if (!el || el.value.trim()==='') throw new Error(`Enter a value for ${id}.`);
+          raw[id]=Number(el.value);
+          if (!Number.isFinite(raw[id])) throw new Error(`Invalid numeric value for ${id}.`);
+        }
+        const c = PyramidEngine.normalizeConfig(raw);
+        for (const id of inputIds) $(id).value = c[id];
+        return c;
+      }
+      function renderMetrics(r) {
+        const m=r.metrics;
+        $('medianFinal').textContent=usd(m.medianFinal); $('medianFoot').textContent=`${m.medianReturnPct>=0?'+':''}${pct(m.medianReturnPct)} median return · before any withdrawals`;
+        $('p10Final').textContent=usd(m.p10Final); $('p90Final').textContent=usd(m.p90Final);
+        $('liqRate').textContent=pct(m.liquidationRatePct); $('liqRate').className='metric-value '+(m.liquidationRatePct===0?'good':m.liquidationRatePct<5?'warn':'bad'); $('liqFoot').textContent=`${Math.round(m.liquidationRatePct*m.paths/100)} of ${m.paths} paths liquidated under model assumptions`;
+        $('mdd').textContent=pct(m.medianMaxDrawdownPct); $('mdd').className='metric-value '+(m.medianMaxDrawdownPct<15?'good':m.medianMaxDrawdownPct<30?'warn':'bad');
+        const delta=m.medianFinal-m.medianBuyHold; $('vsHold').textContent=`${delta>=0?'+':'−'}${usd(Math.abs(delta))}`; $('vsHold').className='metric-value '+(delta>=0?'good':'bad'); $('holdFoot').textContent=`Median spot baseline: ${usd(m.medianBuyHold)} (${pct(m.medianBuyHoldReturnPct)} return)`;
+        $('ruinRate').textContent=pct(m.ruinRatePct); $('ruinRate').className='metric-value '+(m.ruinRatePct===0?'good':'bad');
+        $('meanAdds').textContent=m.meanAdds.toFixed(1); $('meanBlocks').textContent=m.meanGateBlocks.toFixed(1);
+        const labels={'horizon':'Horizon open','horizon-close-out':'Zero at close-out','hard-stop':'Hard stop','trailing-stop':'Trailing stop','breakeven-lock':'Breakeven lock','liquidation':'Liquidated'};
+        $('exitBreakdown').innerHTML='<strong style="color:#bbc9dc">Exit mix:</strong> '+Object.entries(r.exitCounts).sort((a,b)=>b[1]-a[1]).map(([key,count])=>`<span class="chip">${escapeHtml(labels[key]||key)} · ${count}</span>`).join('');
+      }
+      function svgPath(data, key, x, y) { return data.map((d,i)=>`${i?'L':'M'}${x(i).toFixed(2)},${y(d[key]).toFixed(2)}`).join(' '); }
+      function renderChart(r) {
+        const w=940,h=315,pad={l:76,r:20,t:18,b:36}, pw=w-pad.l-pad.r, ph=h-pad.t-pad.b;
+        const all=[]; r.curve.forEach(d=>all.push(d.p90)); r.buyHoldCurve.forEach(d=>all.push(d.p50));
+        const maxValue=Math.max(r.config.capital*1.05,...all)*1.07, minValue=0;
+        const x=i=>pad.l+(i/(r.curve.length-1||1))*pw;
+        const y=v=>pad.t+ph-(v-minValue)/(maxValue-minValue||1)*ph;
+        const upper=r.curve.map((d,i)=>`${i?'L':'M'}${x(i).toFixed(2)},${y(d.p90).toFixed(2)}`).join(' ');
+        const lower=[...r.curve].reverse().map((d,j)=>{const i=r.curve.length-1-j;return `L${x(i).toFixed(2)},${y(d.p10).toFixed(2)}`}).join(' ');
+        const area=`${upper} ${lower} Z`, median=svgPath(r.curve,'p50',x,y), hold=svgPath(r.buyHoldCurve,'p50',x,y);
+        const grid=[]; for(let i=0;i<=4;i++){const val=maxValue*i/4, yy=y(val);grid.push(`<line class="grid" x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}"/><text x="${pad.l-11}" y="${yy+4}" text-anchor="end">${val>=1000000?`${(val/1000000).toFixed(1)}m`:val>=10000?`${(val/1000).toFixed(0)}k`:money(val,0)}</text>`)}
+        const ticks=[0,.25,.5,.75,1].map(frac=>{const xx=pad.l+pw*frac;return `<line class="axis" x1="${xx}" y1="${pad.t+ph}" x2="${xx}" y2="${pad.t+ph+5}"/><text x="${xx}" y="${h-10}" text-anchor="middle">${Math.round(r.config.steps*frac)}</text>`}).join('');
+        $('chartWrap').innerHTML=`<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Equity distribution chart showing P10 to P90 strategy band, median strategy equity, and median buy-and-hold equity"><title>Strategy equity uncertainty band compared with buy-and-hold</title>${grid.join('')}<path class="area" d="${area}"/><path class="median" d="${median}"/><path class="holdline" d="${hold}"/><line class="axis" x1="${pad.l}" y1="${pad.t+ph}" x2="${w-pad.r}" y2="${pad.t+ph}"/>${ticks}<text x="${pad.l}" y="12">Portfolio equity (USDT)</text><text x="${w-pad.r}" y="${h-10}" text-anchor="end">Path step</text></svg>`;
+      }
+      function statusHtml(s) { if(String(s).startsWith('added'))return `<span class="state added">${escapeHtml(s.startsWith('added')?`ADD · ${money(Number(s.split(' ')[1]),0)}`:s)}</span>`;if(s==='blocked')return '<span class="state blocked">BLOCKED</span>';if(s==='waiting')return '<span class="state skipped">WAITING</span>';return '<span class="state skipped">—</span>'; }
+      function renderLadder(plan) {
+        $('ladderBody').innerHTML=plan.rows.length?plan.rows.map(row=>`<tr><td>${row.level}</td><td>${usd(row.triggerA,0)}</td><td>${usd(row.triggerB,0)}</td><td>${usd(row.equityBefore,0)}</td><td><span class="${row.gapBeforePct+1e-5>=currentConfig.safetyBufferPct?'good':'warn'}">${pct(row.gapBeforePct,1)}</span> → <span class="${row.gapAfterPct+1e-5>=currentConfig.safetyBufferPct?'good':'bad'}">${pct(row.gapAfterPct,1)}</span></td><td>${statusHtml(row.aStatus)}</td><td>${statusHtml(row.bStatus)}</td></tr>`).join(''):'<tr><td colspan="7">No add levels configured.</td></tr>';
+      }
+      function renderSnapshot(c) {
+        const s=PyramidEngine.createInitialState(c), prices=[c.startingPriceA,c.startingPriceB], snap=PyramidEngine.formatSnapshot(s,prices,c);
+        $('gapBadge').textContent=`${pct(snap.gapPct,1)} estimated uniform liquidation gap`;
+        $('gapBadge').className='chip '+(snap.gapPct>=c.safetyBufferPct?'safe':'');
+        const names=['Asset A','Asset B'];
+        const boxes=snap.assets.map((a,i)=>{
+          const lp=a.liquidationPrice==null?'Below zero*':usd(a.liquidationPrice,2);
+          const retrace=a.retracePct==null?'no positive conditional LP':`${pct(a.retracePct,1)} retrace to threshold`;
+          return `<div class="riskbox"><div class="label">${names[i]} · conditional liquidation</div><div class="value">${lp}</div><div class="sub">Mark ${usd(a.mark,2)} · ${a.qty>0?retrace:'No open position'}</div></div>`;
+        }).join('');
+        $('riskSnapshot').innerHTML=`<div class="riskbox"><div class="label">Shared account equity</div><div class="value">${usd(snap.equity,2)}</div><div class="sub">Maintenance ${usd(snap.maintenance,2)} · margin used ${usd(snap.usedMargin,2)}</div></div>${boxes}`;
+      }
+      function runSimulation(keepPaths=false) {
+        try {
+          const c=readConfig();
+          currentConfig=c;
+          if(!keepPaths || !currentPaths || currentPaths.length!==c.paths || currentPaths[0].a.length!==c.steps+1) currentPaths=PyramidEngine.generatePricePaths(c,c.paths);
+          currentResult=PyramidEngine.runSimulation(c,currentPaths);
+          currentLadder=PyramidEngine.calculateLadderPlan(c);
+          optimizerCandidates=null;
+          renderMetrics(currentResult); renderChart(currentResult); renderLadder(currentLadder); renderSnapshot(c);
+          $('optimizerWrap').className='blank';$('optimizerWrap').textContent='Optimizer has not run. It evaluates up to 27 parameter combinations using up to 250 common seeded paths.';
+          $('statusText').textContent=`Run complete · ${currentResult.metrics.paths.toLocaleString()} paths × ${c.steps} steps · seed ${c.seed}`;
+          $('configStatus').innerHTML=`<strong>Cross-margin model</strong> · ${c.leverage}× leverage · ${c.correlation.toFixed(2)} correlation`;
+          notify('Stress test completed with deterministic inputs.');
+        } catch(e) { notify(e.message||'Unable to run the simulation.'); }
+      }
+      function runOptimizer() {
+        if(!currentConfig || !currentPaths) runSimulation();
+        if(!currentConfig || !currentPaths) return;
+        try {
+          $('optimizerWrap').className='blank';$('optimizerWrap').textContent='Evaluating candidate settings on common seeded paths…';
+          optimizerCandidates=PyramidEngine.optimizeConfig(currentConfig,currentPaths);
+          $('optimizerWrap').className='table-wrap';
+          $('optimizerWrap').innerHTML=`<table class="opt-table"><thead><tr><th>Rank</th><th>Ladder step</th><th>Add margin</th><th>Safety buffer</th><th>Median return</th><th>Liquidation rate</th><th>Median drawdown</th><th>Apply</th></tr></thead><tbody>${optimizerCandidates.map((o,i)=>`<tr><td>${o.rank}${i===0?' · top score':''}</td><td>${pct(o.config.ladderStepPct,2)}</td><td>${pct(o.config.addMarginPct,2)}</td><td>${pct(o.config.safetyBufferPct,1)}</td><td class="${o.medianReturnPct>=0?'good':'bad'}">${pct(o.medianReturnPct,1)}</td><td class="${o.liquidationRatePct===0?'good':o.liquidationRatePct<5?'warn':'bad'}">${pct(o.liquidationRatePct,1)}</td><td>${pct(o.medianMaxDrawdownPct,1)}</td><td><button data-apply-candidate="${i}">Apply + run</button></td></tr>`).join('')}</tbody></table>`;
+          $('statusText').textContent=`Optimizer complete · ${optimizerCandidates.length} ranked candidates · sample size ${optimizerCandidates[0]?.paths||0}`;
+          notify('Optimization candidates ranked. Validate the selected settings out of sample.');
+        } catch(e) { $('optimizerWrap').className='blank';$('optimizerWrap').textContent=`Optimizer failed: ${e.message}`;notify('Optimizer failed. Review inputs.'); }
+      }
+      function setInput(id,value){$(id).value=value;}
+      function exportCsv() {
+        if(!currentResult){notify('Run a stress test before exporting.');return;}
+        const rows=[['step','strategy_p10_usdt','strategy_median_usdt','strategy_p90_usdt','buy_hold_median_usdt']];
+        for(let i=0;i<currentResult.curve.length;i++){const a=currentResult.curve[i],b=currentResult.buyHoldCurve[i];rows.push([a.step,a.p10.toFixed(6),a.p50.toFixed(6),a.p90.toFixed(6),b.p50.toFixed(6)]);}
+        downloadFile(`pyramid-risk-curves-seed-${currentConfig.seed}.csv`,rows.map(row=>row.join(',')).join('\n'),'text/csv;charset=utf-8');
+        notify('CSV equity-band export created.');
+      }
+      function exportJson() {
+        if(!currentResult){notify('Run a stress test before exporting.');return;}
+        const payload={schemaVersion:'1.0.0',exportedAt:new Date().toISOString(),model:'two-asset correlated synthetic path; linear long-only cross-margin approximation',config:currentConfig,metrics:currentResult.metrics,exitCounts:currentResult.exitCounts,curve:currentResult.curve,buyHoldCurve:currentResult.buyHoldCurve,ladderPlan:currentLadder,optimizerCandidates,limitations:['Not exchange-specific liquidation math','No funding or spread/slippage beyond configured fee','Constant maintenance rate; no risk tiers','Synthetic prices; not forecasts','Liquidation conservatively sets modeled equity to zero']};
+        downloadFile(`pyramid-risk-results-seed-${currentConfig.seed}.json`,JSON.stringify(payload,null,2),'application/json;charset=utf-8');
+        notify('JSON results bundle created.');
+      }
+      function downloadFile(name,content,type){const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+      function resetDefaults(){for(const id of inputIds){const el=$(id);const val=PyramidEngine.DEFAULTS[id];if(val!==undefined)el.value=val;}currentPaths=null;runSimulation();}
+
+      $('runBtn').addEventListener('click',()=>runSimulation());
+      $('sideRunBtn').addEventListener('click',()=>runSimulation());
+      $('optBtn').addEventListener('click',runOptimizer);
+      $('optSectionBtn').addEventListener('click',runOptimizer);
+      $('csvBtn').addEventListener('click',exportCsv);
+      $('jsonBtn').addEventListener('click',exportJson);
+      $('resetBtn').addEventListener('click',resetDefaults);
+      $('randomSeedBtn').addEventListener('click',()=>{const x=Math.floor(Math.random()*2147483647);setInput('seed',x);runSimulation();});
+      $('optimizerWrap').addEventListener('click',(event)=>{const button=event.target.closest('[data-apply-candidate]');if(!button||!optimizerCandidates)return;const candidate=optimizerCandidates[Number(button.dataset.applyCandidate)];if(!candidate)return;for(const [k,v] of Object.entries(candidate.config))setInput(k,v);currentPaths=PyramidEngine.generatePricePaths(currentConfig,currentConfig.paths);runSimulation();notify(`Applied candidate #${candidate.rank}; results rerun using the selected settings.`);});
+      $('configForm').addEventListener('submit',e=>{e.preventDefault();runSimulation();});
+      runSimulation();
+    })();
+  </script>
+</body>
+</html>
