@@ -167,3 +167,61 @@ test('leverage scan compares candidates on the same supplied path sample', () =>
     assert.equal(row.paths, paths.length);
   }
 });
+
+
+test('run metrics compare against the same initial leveraged ticket and report upper-tail drawdown', () => {
+  const c = { ...base, leverage: 5, initialMarginPct: 30, maxMarginUsePct: 60, steps: 8, paths: 20 };
+  const paths = E.generatePricePaths(c, 20);
+  const result = E.runSimulation(c, paths);
+  const hold = paths.map(p => E.simulateInitialTicket(c, p).finalEquity).sort((a, b) => a - b);
+  assert.ok(Number.isFinite(result.metrics.outperformInitialTicketPct));
+  assert.equal(result.metrics.medianInitialTicketHold, E.percentile(hold, 0.5));
+  assert.ok(Math.abs(result.metrics.p10InitialTicketHold - E.percentile(hold, 0.1)) < 1e-9);
+  assert.equal(result.initialTicketCurve.length, c.steps + 1);
+  assert.ok(result.metrics.p90MaxDrawdownPct >= result.metrics.medianMaxDrawdownPct);
+});
+
+test('uptrend optimizer preserves leverage, initial margin and margin-use cap while ranking vs first ticket', () => {
+  const c = { ...base, leverage: 5, initialMarginPct: 30, maxMarginUsePct: 40, driftPct: 0.4, steps: 8, paths: 16 };
+  const paths = E.generatePricePaths(c, 16);
+  const result = E.optimizeUpsideConfig(c, paths);
+  assert.equal(result.evaluatedCandidates, 108);
+  assert.equal(result.baseline.leverage, c.leverage);
+  assert.equal(result.baseline.initialMarginPct, c.initialMarginPct);
+  assert.equal(result.baseline.medianInitialTicketHold, E.runSimulation(c, paths).metrics.medianInitialTicketHold);
+  assert.ok(result.candidates.every(x => x.config.leverage === c.leverage));
+  assert.ok(result.candidates.every(x => x.config.initialMarginPct === c.initialMarginPct));
+  assert.ok(result.candidates.every(x => x.config.maxMarginUsePct === c.maxMarginUsePct));
+  assert.ok(result.candidates.every(x => Number.isFinite(x.outperformInitialTicketPct)));
+  assert.ok(result.candidates.every((x, i, a) => x.rank === i + 1 && x.paths === paths.length && (!i || a[i - 1].score >= x.score)));
+  assert.ok(result.candidates.every(x => x.config.hardStopPct === 0 && x.config.breakevenActivationPct === 500));
+});
+
+test('uptrend optimizer rejects non-positive drift assumptions', () => {
+  assert.throws(() => E.optimizeUpsideConfig({ ...base, driftPct: 0 }), /positive drift/i);
+});
+
+test('initial-ticket baseline ignores subsequent add/exit rules but preserves funding and execution costs', () => {
+  const c = { ...base, leverage: 5, initialMarginPct: 30, maxMarginUsePct: 60, feePct: 0.04, slippagePct: 0.02, fundingPctPer8h: 0.01, hoursPerStep: 24, steps: 4 };
+  const path = {
+    a: [c.startingPriceA, c.startingPriceA * 1.05, c.startingPriceA * 1.10, c.startingPriceA * 1.07, c.startingPriceA * 1.16],
+    b: [c.startingPriceB, c.startingPriceB * 1.05, c.startingPriceB * 1.10, c.startingPriceB * 1.07, c.startingPriceB * 1.16]
+  };
+  const a = E.simulateInitialTicket(c, path);
+  const b = E.simulateInitialTicket({ ...c, addMarginPct: 25, maxAdds: 0, hardStopPct: 90, trailingStopPct: 0.2, trailActivationPct: 0, breakevenActivationPct: 0 }, path);
+  assert.deepEqual(a, b);
+  assert.ok(a.fundingPaid > 0);
+  assert.ok(a.executionCosts > 0);
+});
+
+test('initial-ticket liquidation remains terminal even after a later synthetic price rebound', () => {
+  const c = { ...base, leverage: 5, initialMarginPct: 30, maxMarginUsePct: 60, steps: 3, feePct: 0, slippagePct: 0, fundingPctPer8h: 0 };
+  const path = {
+    a: [c.startingPriceA, c.startingPriceA * 0.3, c.startingPriceA, c.startingPriceA * 1.5],
+    b: [c.startingPriceB, c.startingPriceB * 0.3, c.startingPriceB, c.startingPriceB * 1.5]
+  };
+  const result = E.simulateInitialTicket(c, path);
+  assert.equal(result.liquidated, true);
+  assert.equal(result.finalEquity, 0);
+  assert.deepEqual(result.curve.slice(2), [0, 0]);
+});

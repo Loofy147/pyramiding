@@ -37,3 +37,12 @@ test('prototype-derived friction, funding, tail-shock controls and leverage scan
   assert.match(source, /id="meanExecutionCosts"/);
   assert.match(source, /scanLeverage/);
 });
+
+
+test('UI identifies the hold-first-ticket baseline separately from spot buy-and-hold', () => {
+  assert.match(page, /Paths beating the first ticket/);
+  assert.match(page, /initialTicketCurve/);
+  assert.match(page, /ticketline/);
+  assert.match(page, /Beat first ticket/);
+  assert.match(page, /outperformInitialTicketPct/);
+});
