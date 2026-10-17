@@ -1,0 +1,110 @@
+{
+  "study": "Existing entry uptrend profit extraction",
+  "pathsPerSeedScenario": 1800,
+  "steps": 120,
+  "seeds": [
+    12345,
+    20261017,
+    42
+  ],
+  "summaryMethod": "Arithmetic mean of per-seed medians/P10s; candidate strategies share matched paths within each seed/scenario.",
+  "scenarios": [
+    {
+      "id": "steady_uptrend",
+      "medianFinal": {
+        "hold5x": 26846.31,
+        "currentDefaults": 30073.72,
+        "balancedRider": 46205.02,
+        "aggressiveRider": 46205.02
+      },
+      "p10Final": {
+        "hold5x": 23747.69,
+        "currentDefaults": 26325.35,
+        "balancedRider": 38854.63,
+        "aggressiveRider": 38854.63
+      }
+    },
+    {
+      "id": "noisy_uptrend",
+      "medianFinal": {
+        "hold5x": 16928,
+        "currentDefaults": 11709.97,
+        "balancedRider": 18133.66,
+        "aggressiveRider": 21913.34
+      },
+      "p10Final": {
+        "hold5x": 12598.4,
+        "currentDefaults": 9912.49,
+        "balancedRider": 11130.62,
+        "aggressiveRider": 12387.13
+      },
+      "p90DrawdownPct": {
+        "hold5x": 19.02,
+        "currentDefaults": 11.82,
+        "balancedRider": 22,
+        "aggressiveRider": 29.49
+      }
+    },
+    {
+      "id": "tail_shocks",
+      "medianFinal": {
+        "hold5x": 17959.03,
+        "currentDefaults": 13464.77,
+        "balancedRider": 21381.71,
+        "aggressiveRider": 24130.78
+      },
+      "p10Final": {
+        "hold5x": 13312.12,
+        "currentDefaults": 9743.11,
+        "balancedRider": 10688.76,
+        "aggressiveRider": 11138.05
+      },
+      "p90DrawdownPct": {
+        "balancedRider": 32.24,
+        "aggressiveRider": 34.34
+      }
+    },
+    {
+      "id": "deep_pullbacks",
+      "medianFinal": {
+        "hold5x": 16775.24,
+        "currentDefaults": 10823.55,
+        "balancedRider": 14211.6,
+        "aggressiveRider": 18274.72
+      },
+      "p10Final": {
+        "hold5x": 11237.27,
+        "currentDefaults": 9698.95,
+        "balancedRider": 10300.39,
+        "aggressiveRider": 9560.86
+      },
+      "p90DrawdownPct": {
+        "hold5x": 30.88,
+        "currentDefaults": 17.66,
+        "balancedRider": 31.86,
+        "aggressiveRider": 35.59
+      }
+    },
+    {
+      "id": "reversal",
+      "medianFinal": {
+        "hold5x": 9260.59,
+        "currentDefaults": 14604.09,
+        "balancedRider": 15534.51,
+        "aggressiveRider": 13274.24
+      },
+      "p10Final": {
+        "hold5x": 6942.43,
+        "currentDefaults": 10470.36,
+        "balancedRider": 11521.56,
+        "aggressiveRider": 9801.35
+      },
+      "p90DrawdownPct": {
+        "hold5x": 51.57,
+        "currentDefaults": 10.79,
+        "balancedRider": 22.84,
+        "aggressiveRider": 34.45
+      }
+    }
+  ]
+}

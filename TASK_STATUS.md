@@ -1,31 +1,22 @@
-# Implementation status — Pyramid Risk Lab v1.1.0
+# Implementation status — Pyramid Risk Lab v1.2.0
 
-**Prototype audit:** complete. The previous two HTML prototypes and research note were inspected.  
-**Implementation:** v1.1 prototype-derived improvements committed.  
-**Deployment:** not performed; this remains a local browser app.
+**Scope:** maximize profit capture from an already-open ticket in an uptrend. No entry or market discovery.  
+**Simulation study:** five synthetic scenarios × three seeds × 1,800 paths per seed/scenario × five fixed-entry profiles.  
+**Local verification:** 34 tests pass; standalone build is reproducible. Repository CI is the authoritative committed-code check.  
+**Deployment:** not performed.
 
-| Status | Work item | Evidence / decision |
+| Status | Feature | Evidence |
 |---|---|---|
-| PASS ✅ | Leverage pyramiding | Weighted entries, trigger-based adds, weighted-average entry, bounded add count. |
-| PASS ✅ | In-browser simulator + optimizer | Local HTML/JS, deterministic 3×3×3 candidate grid. |
-| PASS ✅ | Liquidation and margin-add math | Conditional liquidation equation and add cap constrained by safety gap and initial margin. |
-| PASS ✅ | Correlated paths, shared equity | Seeded two-asset log returns with shared wallet cash/equity. |
-| PASS ✅ | Deterministic ladder + stop gates | Ladder rows show triggers, status, pre/post gap and liquidation/retrace estimates. |
-| PASS ✅ | UI, charts and exports | Risk controls, SVG chart, cost metrics, ladder, optimizer, leverage scan, CSV and JSON. |
-| PASS ✅ | Hard/trailing/breakeven exits | Portfolio-level hard stop, equity trailing stop and breakeven lock. |
-| PASS ✅ | Safety-buffer sizing | Gate accounts for fee and slippage costs and bounds margin utilization. |
-| PASS ✅ | Liquidation/retrace metrics | Conditional single-asset solution with other mark prices held fixed. |
-| PASS ✅ | Equity drift and ruin | Per-step equity, drawdown, maintenance checks, liquidation and terminal ruin stats. |
-| PASS ✅ | Percentile bands | P10/P50/P90 terminal metrics and time-series chart bands. |
-| PASS ✅ | Buy-and-hold baseline | Same-capital, unlevered synthetic spot baseline with entry/exit friction. |
-| PASS ✅ | Per-step risk reporting | Equity series, drawdown, exit reason, liquidation/ruin rates. |
-| PASS ✅ | Prototype funding input | Configurable rate per 8h, scaled by step duration and average notional. |
-| PASS ✅ | Prototype slippage input | Per-side cost on entry, adds and modeled exits; included in add safety gate. |
-| PASS ✅ | Prototype leverage scan | Leverage candidates evaluated on common seeded paths; median/mean, liquidation, ruin and drawdown included. |
-| PASS ✅ | Prototype stress shocks | Optional common negative/positive shock term, reproducible by seed, disabled by default. |
-| DEFERRED | Three-asset extension | Old prototype had three tokens but isolated token accounting. Generalize account-level maintenance/liquidation algebra first. |
-| DEFERRED | Volatility-scaled per-asset stop and precise ROE trigger semantics | Preserve current equity trailing stop and price-step add trigger until legacy semantics are specified and tested. |
+| PASS ✅ | Fixed-entry strategy experiments | Matched path comparison of current defaults, no-add first ticket, balanced rider, aggressive rider and cautious rider. |
+| PASS ✅ | Hold-first-ticket counterfactual | Same initial positions, costs, funding and maintenance rules; no adds or strategy exits. |
+| PASS ✅ | Distinct spot comparator | Spot baseline and leveraged first-ticket baseline are reported separately. |
+| PASS ✅ | Uptrend profit optimizer | 108 candidates using the same paths, scored against the first ticket with median/P10 return and drawdown/liquidation penalties. |
+| PASS ✅ | Fixed first-ticket parameters | Leverage, initial margin %, margin-use cap, entry anchors and asset weights stay fixed in optimizer candidates. |
+| PASS ✅ | Rider risk transparency | Hard-stop/breakeven disablement is explicit; P10 outcome, first-ticket beat rate and P90 drawdown are displayed. |
+| PASS ✅ | Equity chart and exports | Adds the median first-ticket line; CSV/JSON contain the first-ticket curve/metrics. |
+| PASS ✅ | Safety gates / costs | Fee/slippage-aware add constraint, funding, maintenance threshold and liquidation tracking remain active. |
+| LIMITATION ⚠️ | Market realism | Synthetic paths only; flat maintenance rate, no partial liquidation, no historical candle replay or order-book fill simulation. |
 
-## Risk-model qualifications
+## Main experimental lesson
 
-Funding uses a constant rate and average pre/post-step notional. Slippage is an additive cost, not an execution-price simulation. Tail-shock parameters are stress assumptions, not empirically calibrated distributions. Constant maintenance margin and zero-equity liquidation are approximations; this is not live trading software.
+Early exit defaults preserved a smaller drawdown in some noisy uptrends but often underperformed simply holding the first ticket. Later/wider equity trails with controlled adds captured more upside, at the cost of deeper tail drawdowns. The aggressive rider won on median in several bull scenarios but was weaker after reversal and had lower P10 in deep-pullback stress. The report documents all numbers and assumptions.

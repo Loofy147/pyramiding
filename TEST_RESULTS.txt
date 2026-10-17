@@ -1,14 +1,7 @@
-Pyramid Risk Lab v1.1.0 — test coverage record
+Pyramid Risk Lab v1.2.0 — regression coverage
 
-The committed Node.js test suite now includes:
-- Baseline cross-margin and liquidation formula checks.
-- Safety-gap and initial-margin constraints.
-- Seeded correlated paths, equity percentile outputs, exits, ladder, optimizer and exports.
-- Bounded prototype-derived friction/funding/shock inputs.
-- Slippage costs on entry/exit.
-- Funding carry per elapsed 8-hour interval.
-- Deterministic common tail-shock events.
-- Leverage scan equality against direct simulations over the same paths.
-- UI wiring checks for risk inputs, cost metrics and the leverage scan.
+Local source suite: 34 passed, 0 failed, 0 skipped.
 
-Use the linked GitHub Actions run for the authoritative result of the committed revision. This file is a coverage map, not a substitute for a completed CI run.
+Coverage includes conditional liquidation math, shared cross-margin equity, safety/margin caps, seeded correlated paths, strategy exits, ladder, optimizer, percentile outputs, fees/slippage, funding, tail shocks, leverage scan, hold-first-ticket counterfactual, initial-ticket invariants, absorbing liquidation after rebound, upside optimizer fixed parameters, first-ticket win rate, P90 drawdown, UI output wiring, chart baselines, exports and deterministic standalone build.
+
+Use the GitHub Actions run for the exact current repository test count/conclusion.

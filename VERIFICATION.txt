@@ -1,20 +1,20 @@
-Pyramid Risk Lab v1.1.0 — verification record
+Pyramid Risk Lab v1.2.0 — verification record
 Date: 2026-10-17
-Target runtime: Node.js 22
+Runtime target: Node.js 22
 
-Coverage added on top of the v1.0 baseline:
-- Config normalization bounds for slippage, funding interval, and tail shock fields.
-- Exact slippage ledger check on constant price paths.
-- Funding accrual check: notional × rate × (hours / 8) × step count.
-- Seeded tail-shock determinism and forced common negative shocks.
-- Leverage scan comparison against direct simulations using the same path sample.
-- UI assertions for all prototype-derived controls and the leverage-scan action.
+Local source verification:
+- npm test: 34 passed, 0 failed, 0 skipped.
+- npm run build:standalone: PASS; standalone generated from index.html + engine.js.
+- Initial-ticket baseline tests verify identical results when add/exit controls differ, funding/cost inclusion, and terminal liquidation after a later price rebound.
+- Upside optimizer tests verify common-path results, fixed leverage/initial-margin/margin-cap parameters, first-ticket metrics and rejection of non-positive drift.
+- UI regression tests check baseline labels, chart line, optimizer output/application, CSV/JSON and reset.
 
-Build consistency:
-- standalone.html is generated from index.html plus the engine.js inline bundle.
-- GitHub Actions runs npm test, rebuilds standalone.html, and rejects uncommitted build drift.
+Simulation coverage:
+- Five synthetic environments, 1,800 paths per seed/scenario, three seeds; matched paths shared by all candidate strategies in each scenario.
+- Full outcomes: UPTREND_SIMULATION_REPORT.md and UPTREND_SIMULATION_SUMMARY.json.
 
-Known limitations:
-- Pixel-level real-browser screenshot verification is not yet available.
-- Maintenance tiers, partial liquidation, liquidation penalties, changed fill prices and live market conditions are not modeled.
-- The three-asset prototype model was deferred rather than copying its isolated per-token liquidation logic.
+Limitations:
+- No historical candle replay, live exchange connection or live execution.
+- Flat maintenance rate, no partial liquidation/penalties, and additive slippage are approximations.
+- Synthetic return and shock assumptions are not calibrated forecasts.
+- Pixel-level browser screenshot inspection is unavailable; deterministic UI harness tests are used.
